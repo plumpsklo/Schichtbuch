@@ -1,0 +1,43 @@
+{% extends "buch/base.html" %}
+
+{% block title %}Eintrag Details{% endblock %}
+
+{% block content %}
+<h2>Schichtbucheintrag</h2>
+
+<table>
+    <tr><th>Datum</th><td>{{ entry.date }}</td></tr>
+    <tr><th>Schicht</th><td>{{ entry.get_shift_display }}</td></tr>
+    <tr><th>Maschine</th><td>{{ entry.machine }}</td></tr>
+    <tr><th>Kategorie</th><td>{{ entry.get_category_display }}</td></tr>
+    <tr><th>Status</th><td>{{ entry.get_status_display }}</td></tr>
+    <tr><th>Dauer (min)</th><td>{{ entry.duration_minutes }}</td></tr>
+    <tr><th>Priorität</th><td>{{ entry.priority }}</td></tr>
+    <tr><th>Mitarbeiter</th><td>{{ entry.user.username }}</td></tr>
+</table>
+
+<h3>Titel</h3>
+<p><strong>{{ entry.title }}</strong></p>
+
+<h3>Beschreibung</h3>
+<p>{{ entry.description|linebreaks }}</p>
+
+{% if entry.images.all %}
+    <h3>Bilder</h3>
+    {% for img in entry.images.all %}
+        <div style="margin-bottom:15px;">
+            <img src="{{ img.image.url }}" style="max-width:100%; max-height:500px;">
+            {% if img.comment %}
+                <p><em>{{ img.comment }}</em></p>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% else %}
+    <p><em>Keine Bilder vorhanden.</em></p>
+{% endif %}
+
+<p>
+    <a href="{% url 'home' %}" class="btn">← Zurück</a>
+</p>
+
+{% endblock %}

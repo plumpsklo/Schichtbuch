@@ -1,0 +1,63 @@
+{% extends "buch/base.html" %}
+
+{% block title %}Übersicht{% endblock %}
+
+{% block content %}
+<h2>Übersicht</h2>
+
+<div class="stats">
+    <div class="stat-box">
+        <div class="stat-label">Einträge heute</div>
+        <div class="stat-value">{{ entries_today }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-label">Einträge diese Woche</div>
+        <div class="stat-value">{{ entries_week }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-label">Offene Einträge</div>
+        <div class="stat-value">{{ open_entries }}</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-label">Erledigte Einträge</div>
+        <div class="stat-value">{{ done_entries }}</div>
+    </div>
+</div>
+
+<h3>Letzte Einträge</h3>
+
+{% if entries %}
+    <table>
+        <thead>
+        <tr>
+            <th>Datum</th>
+            <th>Schicht</th>
+            <th>Maschine</th>
+            <th>Kategorie</th>
+            <th>Status</th>
+            <th>Titel</th>
+            <th>Mitarbeiter</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for e in entries %}
+            <tr>
+                <td>{{ e.date }}</td>
+                <td>{{ e.get_shift_display }}</td>
+                <td>{{ e.machine }}</td>
+                <td>{{ e.get_category_display }}</td>
+                <td>{{ e.get_status_display }}</td>
+                <td>
+                    <a href="{% url 'entry_detail' e.id %}">
+                        {{ e.title }}
+                    </a>
+                </td>
+                <td>{{ e.user.username }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>Noch keine Einträge vorhanden.</p>
+{% endif %}
+{% endblock %}
