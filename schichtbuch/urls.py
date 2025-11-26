@@ -8,5 +8,5 @@ urlpatterns = [
     path('', include('buch.urls')),
 ]
 
-# Medien IMMER ausliefern (auch bei DEBUG=False, z. B. auf Render)
+# Medien IMMER ausliefern – auch bei DEBUG = False (Render)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
