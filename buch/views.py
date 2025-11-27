@@ -10,6 +10,7 @@ from django.http import HttpResponse
 
 from .models import ShiftEntry, ShiftEntryImage, ShiftEntryVideo
 from .forms import ShiftEntryForm
+from .models import Like
 
 
 @login_required
@@ -110,3 +111,17 @@ def debug_media(request):
         lines.append(f"shift_images-Verzeichnis NICHT gefunden unter: {shift_dir}")
 
     return HttpResponse("<br>".join(lines))
+
+@login_required
+def toggle_like(request, entry_id):
+    entry = get_object_or_404(ShiftEntry, id=entry_id)
+
+    like, created = Like.objects.get_or_create(
+        user=request.user,
+        entry=entry
+    )
+
+    if not created:
+        like.delete()  # unlike
+
+    return redirect('entry_detail', entry_id=entry.id)

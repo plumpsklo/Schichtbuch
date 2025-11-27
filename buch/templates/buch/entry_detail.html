@@ -54,6 +54,15 @@
     <p><em>Keine Videos vorhanden.</em></p>
 {% endif %}
 
+<form action="{% url 'toggle_like' entry.id %}" method="post" style="margin-top:15px;">
+    {% csrf_token %}
+
+    <button type="submit" class="btn">
+        👍 Like ({{ entry.likes.count }})
+    </button>
+
+</form>
+
 <p>
     <a href="{% url 'home' %}" class="btn">← Zurück</a>
 </p>

@@ -74,3 +74,15 @@ class ShiftEntryVideo(models.Model):
 
     def __str__(self):
         return f"Video zu: {self.entry}"
+    
+
+class Like(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    entry = models.ForeignKey(ShiftEntry, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'entry')
+
+    def __str__(self):
+        return f"{self.user} mag {self.entry}"
