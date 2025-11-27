@@ -13,6 +13,7 @@
 
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
+
     <div class="field">
         {{ form.date.label_tag }}
         {{ form.date }}
@@ -66,6 +67,16 @@
             <small>{{ form.image.help_text }}</small>
         {% endif %}
         {{ form.image.errors }}
+    </div>
+
+    <!-- 🔥 NEU: Video-Feld -->
+    <div class="field">
+        {{ form.video.label_tag }}
+        {{ form.video }}
+        {% if form.video.help_text %}
+            <small>{{ form.video.help_text }}</small>
+        {% endif %}
+        {{ form.video.errors }}
     </div>
 
     <button type="submit" class="btn btn-primary">Speichern</button>

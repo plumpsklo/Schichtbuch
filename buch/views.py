@@ -8,7 +8,7 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.http import HttpResponse
 
-from .models import ShiftEntry, ShiftEntryImage
+from .models import ShiftEntry, ShiftEntryImage, ShiftEntryVideo
 from .forms import ShiftEntryForm
 
 
@@ -59,9 +59,12 @@ def new_entry(request):
             if image_file:
                 ShiftEntryImage.objects.create(entry=entry, image=image_file)
 
+            video_file = form.cleaned_data.get('video')
+            if video_file:
+                ShiftEntryVideo.objects.create(entry=entry, video=video_file)
+
             return redirect('home')
     else:
-        # Standard: Datum = heute, Schicht leer → der User wählt
         initial = {'date': timezone.localdate()}
         form = ShiftEntryForm(initial=initial)
 

@@ -36,6 +36,24 @@
     <p><em>Keine Bilder vorhanden.</em></p>
 {% endif %}
 
+{# 🔥 NEU: Videos #}
+{% if entry.videos.all %}
+    <h3>Videos</h3>
+    {% for vid in entry.videos.all %}
+        <div style="margin-bottom:15px;">
+            <video controls style="max-width:100%; max-height:500px;">
+                <source src="{{ vid.video.url }}">
+                Dein Browser unterstützt das Video-Tag nicht.
+            </video>
+            {% if vid.comment %}
+                <p><em>{{ vid.comment }}</em></p>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% else %}
+    <p><em>Keine Videos vorhanden.</em></p>
+{% endif %}
+
 <p>
     <a href="{% url 'home' %}" class="btn">← Zurück</a>
 </p>

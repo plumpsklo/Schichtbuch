@@ -58,3 +58,19 @@ class ShiftEntryImage(models.Model):
 
     def __str__(self):
         return f"Bild zu: {self.entry}"
+
+
+# ⬇️ NEU: Videos pro Eintrag
+class ShiftEntryVideo(models.Model):
+    entry = models.ForeignKey(
+        ShiftEntry,
+        on_delete=models.CASCADE,
+        related_name='videos'
+    )
+    # landet unter MEDIA_ROOT/shift_videos/
+    video = models.FileField(upload_to='shift_videos/')
+    comment = models.CharField(max_length=200, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Video zu: {self.entry}"
