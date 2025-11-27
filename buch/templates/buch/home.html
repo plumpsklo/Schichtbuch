@@ -5,6 +5,7 @@
 {% block content %}
 <h2>Übersicht</h2>
 
+<!-- Statistiken oben -->
 <div class="stats">
     <div class="stat-box">
         <div class="stat-label">Einträge heute</div>
@@ -24,37 +25,57 @@
     </div>
 </div>
 
+<hr>
+
+<!-- Diagramme -->
+<h3>Statistiken</h3>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px;">
+    <div style="flex: 1 1 300px;">
+        <h4>Status-Verteilung</h4>
+        <canvas id="statusChart"></canvas>
+    </div>
+
+    <div style="flex: 1 1 300px;">
+        <h4>Einträge (letzte 7 Tage)</h4>
+        <canvas id="dateChart"></canvas>
+    </div>
+</div>
+
+<hr>
+
 <h3>Letzte Einträge</h3>
 
 <div class="table-wrapper">
     <table>
         <thead>
-            <tr>
-                <th>Datum</th>
-                <th>Schicht</th>
-                <th>Maschine</th>
-                <th>Titel</th>
-                <th>Status</th>
-                <th>Mitarbeiter</th>
-            </tr>
+        <tr>
+            <th>Datum</th>
+            <th>Schicht</th>
+            <th>Maschine</th>
+            <th>Titel</th>
+            <th>Status</th>
+            <th>Mitarbeiter</th>
+        </tr>
         </thead>
         <tbody>
-            {% for entry in entries %}
-                <tr onclick="window.location='{% url "entry_detail" entry.id %}'" style="cursor: pointer;">
-                    <td>{{ entry.date }}</td>
-                    <td>{{ entry.get_shift_display }}</td>
-                    <td>{{ entry.machine }}</td>
-                    <td>{{ entry.title }}</td>
-                    <td class="status-{{ entry.status }}">
-                        {{ entry.get_status_display }}
-                    </td>
-                    <td>{{ entry.user.username }}</td>
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="6"><em>Keine Einträge vorhanden.</em></td>
-                </tr>
-            {% endfor %}
+        {% for entry in entries %}
+            <tr onclick="window.location='{% url 'entry_detail' entry.id %}'"
+                style="cursor: pointer;">
+                <td>{{ entry.date }}</td>
+                <td>{{ entry.get_shift_display }}</td>
+                <td>{{ entry.machine }}</td>
+                <td>{{ entry.title }}</td>
+                <td class="status-{{ entry.status }}">
+                    {{ entry.get_status_display }}
+                </td>
+                <td>{{ entry.user.username }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="6"><em>Keine Einträge vorhanden.</em></td>
+            </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
@@ -62,4 +83,57 @@
 <p style="margin-top: 15px;">
     <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>
 </p>
+
+<!-- Chart.js (lokale Datei, kein Internet) -->
+<script src="{% static 'js/chart.umd.js' %}"></script>
+
+<script>
+    // ---------------------------
+    // Status-Diagramm (Doughnut)
+    // ---------------------------
+    const statusLabels = {{ status_labels_json|safe }};
+    const statusData = {{ status_data_json|safe }};
+
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                data: statusData,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+
+
+    // -------------------------------------
+    // Einträge pro Tag (letzte 7 Tage)
+    // -------------------------------------
+    const dateLabels = {{ date_labels_json|safe }};
+    const dateData = {{ date_data_json|safe }};
+
+    new Chart(document.getElementById('dateChart'), {
+        type: 'bar',
+        data: {
+            labels: dateLabels,
+            datasets: [{
+                label: 'Einträge',
+                data: dateData,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
 {% endblock %}
