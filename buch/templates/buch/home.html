@@ -40,12 +40,14 @@
         </thead>
         <tbody>
             {% for entry in entries %}
-                <tr onclick="window.location='{% url 'entry_detail' entry.id %}'" style="cursor: pointer;">
+                <tr onclick="window.location='{% url "entry_detail" entry.id %}'" style="cursor: pointer;">
                     <td>{{ entry.date }}</td>
                     <td>{{ entry.get_shift_display }}</td>
                     <td>{{ entry.machine }}</td>
                     <td>{{ entry.title }}</td>
-                    <td>{{ entry.get_status_display }}</td>
+                    <td class="status-{{ entry.status }}">
+                        {{ entry.get_status_display }}
+                    </td>
                     <td>{{ entry.user.username }}</td>
                 </tr>
             {% empty %}

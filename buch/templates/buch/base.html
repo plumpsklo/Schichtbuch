@@ -12,6 +12,24 @@
             margin: 16px;
             font-size: 16px;
         }
+        
+        .status-OFFEN {
+            background: #fff3cd;
+            color: #856404;
+            font-weight: 600;
+        }
+
+        .status-IN_ARB {
+            background: #cce5ff;
+            color: #004085;
+            font-weight: 600;
+        }
+
+        .status-ERLED {
+            background: #d4edda;
+            color: #155724;
+            font-weight: 600;
+        }
 
         .container {
             max-width: 1100px;
@@ -164,19 +182,19 @@
     <header>
         <h1>Schichtbuch</h1>
         <nav>
-            <a href="{% url 'home' %}" class="btn">Übersicht</a>
-            <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>
+    {% if user.is_authenticated %}
+        <a href="{% url 'home' %}" class="btn">Übersicht</a>
+        <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>
 
-            {% if user.is_authenticated %}
-                <span>Angemeldet als: {{ user.username }}</span>
-                <a href="{% url 'password_change' %}" class="btn">Passwort ändern</a>
-                <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
-            {% else %}
-                <a href="{% url 'login' %}" class="btn">Login</a>
-            {% endif %}
+        <span>Angemeldet als: {{ user.username }}</span>
+        <a href="{% url 'password_change' %}" class="btn">Passwort ändern</a>
+        <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
+    {% else %}
+        <a href="{% url 'login' %}" class="btn">Login</a>
+    {% endif %}
 
-            <a href="/admin/" class="btn">Admin</a>
-        </nav>
+    <a href="/admin/" class="btn">Admin</a>
+</nav>
     </header>
 
     {% block content %}{% endblock %}

@@ -10,7 +10,12 @@
     <tr><th>Schicht</th><td>{{ entry.get_shift_display }}</td></tr>
     <tr><th>Maschine</th><td>{{ entry.machine }}</td></tr>
     <tr><th>Kategorie</th><td>{{ entry.get_category_display }}</td></tr>
-    <tr><th>Status</th><td>{{ entry.get_status_display }}</td></tr>
+    <tr>
+        <th>Status</th>
+        <td class="status-{{ entry.status }}">
+        {{ entry.get_status_display }}
+        </td>
+    </tr>
     <tr><th>Dauer (min)</th><td>{{ entry.duration_minutes }}</td></tr>
     <tr><th>Priorität</th><td>{{ entry.priority }}</td></tr>
     <tr><th>Mitarbeiter</th><td>{{ entry.user.username }}</td></tr>
