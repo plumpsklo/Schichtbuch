@@ -42,5 +42,15 @@
 </header>
 
 {% block content %}{% endblock %}
+<div style="
+    position: fixed;
+    bottom: 5px;
+    right: 10px;
+    font-size: 11px;
+    color: #aaa;
+    user-select: none;
+">
+    Version {{ APP_VERSION }} – {{ APP_STAGE|capfirst }}
+</div>
 </body>
 </html>

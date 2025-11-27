@@ -58,6 +58,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'schichtbuch.context_processors.app_version',
             ],
         },
     },
@@ -133,3 +134,6 @@ LOGOUT_REDIRECT_URL = 'login'
 # Default primary key field type
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+APP_VERSION = "0.1"
+APP_STAGE = "alpha"
