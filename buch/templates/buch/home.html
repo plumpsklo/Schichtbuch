@@ -26,38 +26,38 @@
 
 <h3>Letzte Einträge</h3>
 
-{% if entries %}
+<div class="table-wrapper">
     <table>
         <thead>
-        <tr>
-            <th>Datum</th>
-            <th>Schicht</th>
-            <th>Maschine</th>
-            <th>Kategorie</th>
-            <th>Status</th>
-            <th>Titel</th>
-            <th>Mitarbeiter</th>
-        </tr>
+            <tr>
+                <th>Datum</th>
+                <th>Schicht</th>
+                <th>Maschine</th>
+                <th>Titel</th>
+                <th>Status</th>
+                <th>Mitarbeiter</th>
+            </tr>
         </thead>
         <tbody>
-        {% for e in entries %}
-            <tr>
-                <td>{{ e.date }}</td>
-                <td>{{ e.get_shift_display }}</td>
-                <td>{{ e.machine }}</td>
-                <td>{{ e.get_category_display }}</td>
-                <td>{{ e.get_status_display }}</td>
-                <td>
-                    <a href="{% url 'entry_detail' e.id %}">
-                        {{ e.title }}
-                    </a>
-                </td>
-                <td>{{ e.user.username }}</td>
-            </tr>
-        {% endfor %}
+            {% for entry in entries %}
+                <tr onclick="window.location='{% url 'entry_detail' entry.id %}'" style="cursor: pointer;">
+                    <td>{{ entry.date }}</td>
+                    <td>{{ entry.get_shift_display }}</td>
+                    <td>{{ entry.machine }}</td>
+                    <td>{{ entry.title }}</td>
+                    <td>{{ entry.get_status_display }}</td>
+                    <td>{{ entry.user.username }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6"><em>Keine Einträge vorhanden.</em></td>
+                </tr>
+            {% endfor %}
         </tbody>
     </table>
-{% else %}
-    <p>Noch keine Einträge vorhanden.</p>
-{% endif %}
+</div>
+
+<p style="margin-top: 15px;">
+    <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>
+</p>
 {% endblock %}
