@@ -1,0 +1,59 @@
+{% extends "buch/base.html" %}
+
+{% block title %}Eintrag ergänzen{% endblock %}
+
+{% block content %}
+<h2>Eintrag ergänzen</h2>
+
+<p>
+    <strong>Maschine:</strong> {{ entry.machine }}<br>
+    <strong>Titel:</strong> {{ entry.title }}<br>
+    <strong>Aktueller Status:</strong> {{ entry.get_status_display }}
+</p>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="field">
+        {{ form.action_time.label_tag }}
+        {{ form.action_time }}
+        {{ form.action_time.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.status.label_tag }}
+        {{ form.status }}
+        {{ form.status.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.comment.label_tag }}
+        {{ form.comment }}
+        {{ form.comment.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.image.label_tag }}
+        {{ form.image }}
+        {{ form.image.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.video.label_tag }}
+        {{ form.video }}
+        {{ form.video.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.spare_info.label_tag }}
+        {{ form.spare_info }}
+        {% if form.spare_info.help_text %}
+            <small>{{ form.spare_info.help_text }}</small>
+        {% endif %}
+        {{ form.spare_info.errors }}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Speichern</button>
+    <a href="{% url 'entry_detail' entry.id %}" class="btn">Abbrechen</a>
+</form>
+{% endblock %}

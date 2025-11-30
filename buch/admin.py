@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Machine, ShiftEntry, ShiftEntryImage
+from .models import Machine, ShiftEntry, ShiftEntryImage, ShiftEntryUpdate
 
 
 class ShiftEntryImageInline(admin.TabularInline):
@@ -48,3 +48,9 @@ class ShiftEntryAdmin(admin.ModelAdmin):
 @admin.register(ShiftEntryImage)
 class ShiftEntryImageAdmin(admin.ModelAdmin):
     list_display = ('entry', 'uploaded_at')
+
+@admin.register(ShiftEntryUpdate)
+class ShiftEntryUpdateAdmin(admin.ModelAdmin):
+    list_display = ("entry", "user", "action_time", "status_before", "status_after")
+    list_filter = ("user", "status_after")
+    search_fields = ("comment",)

@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="light">
 <head>
     <meta charset="utf-8">
     <title>Schichtbuch – {% block title %}{% endblock %}</title>
@@ -8,37 +8,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
+        /* Farb-Variablen für Hell/Dunkel */
+        :root {
+            --bg-color: #f5f5f5;
+            --bg-color-alt: #ffffff;
+            --text-color: #111111;
+            --muted-text: #666666;
+            --border-color: #cccccc;
+            --header-bg: #eeeeee;
+            --card-bg: #f9f9f9;
+
+            --primary-color: #007bff;
+            --primary-text-on: #ffffff;
+
+            --danger-color: #dc3545;
+            --danger-text-on: #ffffff;
+
+            --button-bg: #ffffff;
+            --button-border: #007bff;
+            --button-text: #007bff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --bg-color-alt: #181818;
+            --text-color: #f5f5f5;
+            --muted-text: #aaaaaa;
+            --border-color: #333333;
+            --header-bg: #202020;
+            --card-bg: #1f1f1f;
+
+            --primary-color: #3d8bff;
+            --primary-text-on: #ffffff;
+
+            --danger-color: #ff5c5c;
+            --danger-text-on: #ffffff;
+
+            --button-bg: #1f1f1f;
+            --button-border: #3d8bff;
+            --button-text: #e0e0e0;
+        }
+
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 16px;
             font-size: 16px;
-        }
-
-        .status-OFFEN {
-            background: #fff3cd;
-            color: #856404;
-            font-weight: 600;
-        }
-
-        .status-IN_ARB {
-            background: #cce5ff;
-            color: #004085;
-            font-weight: 600;
-        }
-
-        .status-ERLED {
-            background: #d4edda;
-            color: #155724;
-            font-weight: 600;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
 
         .container {
             max-width: 1100px;
             margin: 0 auto;
+            background-color: var(--bg-color-alt);
+            padding: 12px 16px 40px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
 
         header {
             margin-bottom: 20px;
+        }
+
+        header h1 {
+            margin: 0 0 8px 0;
         }
 
         nav {
@@ -52,6 +85,10 @@
             text-decoration: none;
         }
 
+        .nav-spacer {
+            flex: 1 1 auto;
+        }
+
         table {
             border-collapse: collapse;
             width: 100%;
@@ -59,13 +96,13 @@
         }
 
         th, td {
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             padding: 6px 8px;
             font-size: 14px;
         }
 
         th {
-            background: #eee;
+            background: var(--header-bg);
         }
 
         .table-wrapper {
@@ -82,15 +119,15 @@
 
         .stat-box {
             padding: 10px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            background: #f9f9f9;
+            background: var(--card-bg);
             flex: 1 1 140px;
         }
 
         .stat-label {
             font-size: 12px;
-            color: #555;
+            color: var(--muted-text);
         }
 
         .stat-value {
@@ -102,25 +139,33 @@
             display: inline-block;
             padding: 6px 10px;
             border-radius: 4px;
-            border: 1px solid #007bff;
-            color: #007bff;
-            background: #fff;
+            border: 1px solid var(--button-border);
+            color: var(--button-text);
+            background: var(--button-bg);
             font-size: 14px;
+            cursor: pointer;
         }
 
         .btn-primary {
-            background: #007bff;
-            color: #fff;
+            background: var(--primary-color);
+            color: var(--primary-text-on);
+            border-color: var(--primary-color);
         }
 
         .btn-danger {
-            border-color: #dc3545;
-            color: #dc3545;
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+            background: transparent;
+        }
+
+        [data-theme="dark"] .btn-danger {
+            color: var(--danger-text-on);
+            border-color: var(--danger-color);
         }
 
         .btn-danger:hover {
-            background: #dc3545;
-            color: #fff;
+            background: var(--danger-color);
+            color: var(--danger-text-on);
         }
 
         .btn + .btn {
@@ -145,6 +190,17 @@
             padding: 8px;
             font-size: 16px; /* angenehm für Touch UND PC */
             box-sizing: border-box;
+            background-color: var(--bg-color-alt);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 1px;
         }
 
         .errors {
@@ -152,10 +208,32 @@
             margin-bottom: 10px;
         }
 
+        .status-OFFEN {
+            background: #fff3cd;
+            color: #856404;
+            font-weight: 600;
+        }
+
+        .status-IN_ARB {
+            background: #cce5ff;
+            color: #004085;
+            font-weight: 600;
+        }
+
+        .status-ERLED {
+            background: #d4edda;
+            color: #155724;
+            font-weight: 600;
+        }
+
         /* 🔽 kleinere Bildschirme (iPhones etc.) */
         @media (max-width: 600px) {
             body {
                 margin: 10px;
+            }
+
+            .container {
+                padding: 10px 10px 40px 10px;
             }
 
             header h1 {
@@ -177,9 +255,6 @@
             }
         }
     </style>
-
-    <!-- Lokale Chart.js-Datei -->
-    <script src="{% static 'js/chart.umd.js' %}"></script>
 </head>
 <body>
 <div class="container">
@@ -198,6 +273,11 @@
             {% endif %}
 
             <a href="/admin/" class="btn">Admin</a>
+
+            <span class="nav-spacer"></span>
+
+            <!-- Theme-Toggle -->
+            <button type="button" class="btn" id="themeToggle">🌙 Dunkel</button>
         </nav>
     </header>
 
@@ -214,5 +294,49 @@
 ">
     Version {{ APP_VERSION }} – {{ APP_STAGE|capfirst }}
 </div>
+
+<script>
+    (function() {
+        const STORAGE_KEY = "schichtbuch-theme";
+        const root = document.documentElement;
+        const btn = document.getElementById("themeToggle");
+
+        function applyTheme(theme) {
+            root.setAttribute("data-theme", theme);
+            if (!btn) return;
+            if (theme === "dark") {
+                btn.textContent = "☀️ Hell";
+            } else {
+                btn.textContent = "🌙 Dunkel";
+            }
+        }
+
+        function getPreferredTheme() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored === "light" || stored === "dark") {
+                return stored;
+            }
+            if (window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                return "dark";
+            }
+            return "light";
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const theme = getPreferredTheme();
+            applyTheme(theme);
+
+            if (btn) {
+                btn.addEventListener("click", function() {
+                    const current = root.getAttribute("data-theme") || "light";
+                    const next = current === "light" ? "dark" : "light";
+                    localStorage.setItem(STORAGE_KEY, next);
+                    applyTheme(next);
+                });
+            }
+        });
+    })();
+</script>
 </body>
 </html>

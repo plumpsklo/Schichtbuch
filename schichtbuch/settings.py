@@ -135,5 +135,5 @@ LOGOUT_REDIRECT_URL = 'login'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-APP_VERSION = "0.1"
+APP_VERSION = "0.1.1"
 APP_STAGE = "alpha"

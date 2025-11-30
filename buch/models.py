@@ -118,3 +118,36 @@ class Like(models.Model):
 
     def __str__(self):
         return f"Like von {self.user} für {self.entry}"
+    
+class ShiftEntryUpdate(models.Model):
+    entry = models.ForeignKey(
+        "ShiftEntry",
+        on_delete=models.CASCADE,
+        related_name="updates"
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    # Text, den der Bearbeiter ergänzt
+    comment = models.TextField()
+
+    # Zeitpunkt der tatsächlichen Maßnahme (vom Benutzer gewählt)
+    action_time = models.DateTimeField()
+
+    # Status-Änderung protokollieren
+    status_before = models.CharField(
+        max_length=10,
+        choices=ShiftEntry.STATUS_CHOICES,
+        blank=True
+    )
+    status_after = models.CharField(
+        max_length=10,
+        choices=ShiftEntry.STATUS_CHOICES,
+        blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["action_time", "id"]
+
+    def __str__(self):
+        return f"Update zu {self.entry} von {self.user} am {self.action_time}"
