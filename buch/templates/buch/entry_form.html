@@ -60,6 +60,40 @@
         {{ form.status.errors }}
     </div>
 
+    <hr>
+    <h3>Ersatzteile</h3>
+
+    <div class="field">
+        {{ form.used_spare_parts.label_tag }}
+        {{ form.used_spare_parts }}
+        {{ form.used_spare_parts.errors }}
+    </div>
+
+    <div id="spare-part-details" style="margin-left: 10px;">
+        <div class="field">
+            {{ form.spare_part_description.label_tag }}
+            {{ form.spare_part_description }}
+            {{ form.spare_part_description.errors }}
+        </div>
+        <div class="field">
+            {{ form.spare_part_sap_number.label_tag }}
+            {{ form.spare_part_sap_number }}
+            {{ form.spare_part_sap_number.errors }}
+        </div>
+        <div class="field">
+            {{ form.spare_part_quantity_used.label_tag }}
+            {{ form.spare_part_quantity_used }}
+            {{ form.spare_part_quantity_used.errors }}
+        </div>
+        <div class="field">
+            {{ form.spare_part_quantity_remaining.label_tag }}
+            {{ form.spare_part_quantity_remaining }}
+            {{ form.spare_part_quantity_remaining.errors }}
+        </div>
+    </div>
+
+    <hr>
+
     <div class="field">
         {{ form.image.label_tag }}
         {{ form.image }}
@@ -69,16 +103,23 @@
         {{ form.image.errors }}
     </div>
 
-    <!-- 🔥 NEU: Video-Feld -->
-    <div class="field">
-        {{ form.video.label_tag }}
-        {{ form.video }}
-        {% if form.video.help_text %}
-            <small>{{ form.video.help_text }}</small>
-        {% endif %}
-        {{ form.video.errors }}
-    </div>
-
     <button type="submit" class="btn btn-primary">Speichern</button>
 </form>
+
+<script>
+    function toggleSparePartDetails() {
+        const checkbox = document.getElementById("id_used_spare_parts");
+        const details = document.getElementById("spare-part-details");
+        if (!checkbox || !details) return;
+        details.style.display = checkbox.checked ? "block" : "none";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const checkbox = document.getElementById("id_used_spare_parts");
+        if (checkbox) {
+            checkbox.addEventListener("change", toggleSparePartDetails);
+            toggleSparePartDetails();  // initialer Zustand
+        }
+    });
+</script>
 {% endblock %}

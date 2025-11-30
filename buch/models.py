@@ -46,12 +46,42 @@ class ShiftEntry(models.Model):
     priority = models.PositiveIntegerField(default=2)  # 1 = hoch, 2 = normal, 3 = niedrig
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='OFFEN')
 
+    # 🔧 Ersatzteil-Daten
+    used_spare_parts = models.BooleanField(
+        default=False,
+        verbose_name="Ersatzteile verwendet"
+    )
+    spare_part_description = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Beschreibung des Ersatzteils"
+    )
+    spare_part_sap_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="SAP-Nummer"
+    )
+    spare_part_quantity_used = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Entnommene Anzahl"
+    )
+    spare_part_quantity_remaining = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Bestand nach Entnahme"
+    )
+
     def __str__(self):
         return f"{self.date} - {self.machine} - {self.title}"
 
 
 class ShiftEntryImage(models.Model):
-    entry = models.ForeignKey(ShiftEntry, on_delete=models.CASCADE, related_name='images')
+    entry = models.ForeignKey(
+        ShiftEntry,
+        on_delete=models.CASCADE,
+        related_name='images'
+    )
     image = models.ImageField(upload_to='shift_images/')
     comment = models.CharField(max_length=200, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -60,29 +90,31 @@ class ShiftEntryImage(models.Model):
         return f"Bild zu: {self.entry}"
 
 
-# ⬇️ NEU: Videos pro Eintrag
 class ShiftEntryVideo(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
         on_delete=models.CASCADE,
         related_name='videos'
     )
-    # landet unter MEDIA_ROOT/shift_videos/
     video = models.FileField(upload_to='shift_videos/')
     comment = models.CharField(max_length=200, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Video zu: {self.entry}"
-    
+
 
 class Like(models.Model):
+    entry = models.ForeignKey(
+        ShiftEntry,
+        on_delete=models.CASCADE,
+        related_name='likes'
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    entry = models.ForeignKey(ShiftEntry, on_delete=models.CASCADE, related_name='likes')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'entry')
+        unique_together = ('entry', 'user')
 
     def __str__(self):
-        return f"{self.user} mag {self.entry}"
+        return f"Like von {self.user} für {self.entry}"

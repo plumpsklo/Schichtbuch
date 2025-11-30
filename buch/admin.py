@@ -15,9 +15,33 @@ class MachineAdmin(admin.ModelAdmin):
 
 @admin.register(ShiftEntry)
 class ShiftEntryAdmin(admin.ModelAdmin):
-    list_display = ('date', 'shift', 'machine', 'category', 'status', 'priority', 'user', 'duration_minutes')
-    list_filter = ('shift', 'machine', 'category', 'status', 'priority')
-    search_fields = ('title', 'description')
+    list_display = (
+        'date',
+        'shift',
+        'machine',
+        'category',
+        'status',
+        'priority',
+        'user',
+        'duration_minutes',
+        'used_spare_parts',            # 🔧 neu
+        'spare_part_sap_number',       # 🔧 neu (SAP direkt sichtbar)
+        'spare_part_quantity_used',    # 🔧 neu
+    )
+    list_filter = (
+        'shift',
+        'machine',
+        'category',
+        'status',
+        'priority',
+        'used_spare_parts',            # 🔧 neu → Filter "Ersatzteile verwendet: ja/nein"
+    )
+    search_fields = (
+        'title',
+        'description',
+        'spare_part_description',      # 🔧 neu
+        'spare_part_sap_number',       # 🔧 neu
+    )
     inlines = [ShiftEntryImageInline]
 
 
