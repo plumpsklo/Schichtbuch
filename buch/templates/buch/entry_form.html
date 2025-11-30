@@ -103,6 +103,15 @@
         {{ form.image.errors }}
     </div>
 
+    <div class="field">
+        {{ form.video.label_tag }}
+        {{ form.video }}
+        {% if form.video.help_text %}
+            <small>{{ form.video.help_text }}</small>
+        {% endif %}
+        {{ form.video.errors }}
+    </div>
+
     <button type="submit" class="btn btn-primary">Speichern</button>
 </form>
 

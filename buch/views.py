@@ -128,9 +128,35 @@ def new_entry(request):
 @login_required
 def entry_detail(request, entry_id):
     entry = get_object_or_404(ShiftEntry, id=entry_id)
-    return render(request, 'buch/entry_detail.html', {
-        'entry': entry
-    })
+
+    user = request.user
+
+    # 🔑 Darf der Benutzer die Ersatzteil-Daten sehen?
+    is_owner = (entry.user_id == user.id)
+    is_admin_or_meister = (
+        user.is_superuser
+        or user.is_staff                      # optional, kannst du auch rausnehmen
+        or user.groups.filter(
+            name__in=["Admin", "Meister"]
+        ).exists()
+    )
+
+    can_view_spares = is_owner or is_admin_or_meister
+
+    # Falls du Likes benutzt – optional:
+    likes_count = getattr(entry, "likes", None).count() if hasattr(entry, "likes") else 0
+    user_liked = (
+        hasattr(entry, "likes")
+        and entry.likes.filter(user=user).exists()
+    )
+
+    context = {
+        "entry": entry,
+        "can_view_spares": can_view_spares,
+        "likes_count": likes_count,
+        "user_liked": user_liked,
+    }
+    return render(request, "buch/entry_detail.html", context)
 
 
 @login_required

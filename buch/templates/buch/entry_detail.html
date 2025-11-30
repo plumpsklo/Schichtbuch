@@ -27,6 +27,32 @@
 <h3>Beschreibung</h3>
 <p>{{ entry.description|linebreaks }}</p>
 
+{% if entry.used_spare_parts and can_view_spares %}
+    <h3>Ersatzteile</h3>
+    <table>
+        <tr>
+            <th>Beschreibung</th>
+            <td>{{ entry.spare_part_description }}</td>
+        </tr>
+        <tr>
+            <th>SAP-Nummer</th>
+            <td>{{ entry.spare_part_sap_number }}</td>
+        </tr>
+        <tr>
+            <th>Entnommene Anzahl</th>
+            <td>{{ entry.spare_part_quantity_used }}</td>
+        </tr>
+        <tr>
+            <th>Bestand nach Entnahme</th>
+            <td>{{ entry.spare_part_quantity_remaining }}</td>
+        </tr>
+    </table>
+
+{% elif entry.used_spare_parts %}
+    <!-- Es wurden Ersatzteile genutzt, aber Benutzer ist nicht berechtigt -->
+    <p><em>Ersatzteile wurden verwendet. Details sind nur für Meister/Admin oder den Ersteller sichtbar.</em></p>
+{% endif %}
+
 {% if entry.images.all %}
     <h3>Bilder</h3>
     {% for img in entry.images.all %}
