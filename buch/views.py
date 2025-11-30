@@ -16,6 +16,7 @@ from .models import (
     ShiftEntryVideo,
     Like,
     ShiftEntryUpdate,
+    SparePart,
 )
 from .forms import ShiftEntryForm, ShiftEntryUpdateForm
 
@@ -27,11 +28,14 @@ def home(request):
 
     # --- Statistik-Kacheln ---
     entries_today = ShiftEntry.objects.filter(date=today).count()
-    entries_week = ShiftEntry.objects.filter(date__gte=week_start, date__lte=today).count()
+    entries_week = ShiftEntry.objects.filter(
+        date__gte=week_start,
+        date__lte=today,
+    ).count()
     open_entries = ShiftEntry.objects.filter(status="OFFEN").count()
     done_entries = ShiftEntry.objects.filter(status="ERLED").count()
 
-    # --- Top-Maschinen nach Störung (optional, z.B. für später) ---
+    # --- Top-Maschinen nach Störung (optional) ---
     top_machines = (
         ShiftEntry.objects.filter(category="STOER")
         .values("machine__name")
@@ -109,7 +113,6 @@ def new_entry(request):
     - Basisdaten über ShiftEntryForm
     - optional ein Bild
     - optional ein Video
-    (Ersatzteile können wir bei Bedarf später strukturierter anbinden)
     """
     if request.method == "POST":
         form = ShiftEntryForm(request.POST, request.FILES)
@@ -141,23 +144,27 @@ def new_entry(request):
 def entry_detail(request, entry_id):
     """
     Detailansicht:
-    - zeigt Grunddaten, Bilder, Videos
-    - zeigt Historie (ShiftEntryUpdate), wenn Template das nutzt
-    - über can_view_spares kann im Template gesteuert werden,
-      wer Ersatzteilinfos sieht (Admin/Meister/Ersteller).
+    - zeigt Grunddaten, Bilder, Videos, Updates
+    - Ersatzteile werden nur angezeigt, wenn can_view_spares=True
     """
     entry = get_object_or_404(ShiftEntry, id=entry_id)
     user = request.user
 
-    # 🔑 Darf der Benutzer die Ersatzteil-Daten sehen?
+    # Besitzer des ursprünglichen Eintrags?
     is_owner = (entry.user_id == user.id)
+
+    # Admin / Meister?
     is_admin_or_meister = (
         user.is_superuser
         or user.is_staff
         or user.groups.filter(name__in=["Admin", "Meister"]).exists()
     )
 
-    can_view_spares = is_owner or is_admin_or_meister
+    # Hat dieser Benutzer selber eine Ergänzung zu diesem Eintrag gemacht?
+    has_updated_this_entry = entry.updates.filter(user=user).exists()
+
+    # Darf Ersatzteile sehen?
+    can_view_spares = is_owner or is_admin_or_meister or has_updated_this_entry
 
     # Likes (optional)
     likes_count = getattr(entry, "likes", None).count() if hasattr(entry, "likes") else 0
@@ -184,8 +191,16 @@ def update_entry(request, entry_id):
     - optional neuer Status
     - optional zusätzliches Bild
     - optional zusätzliches Video
-    - optional Freitext für Ersatzteile
-    Nichts überschreibt die ursprüngliche Beschreibung.
+    - optional strukturierte Ersatzteilangabe:
+        * Checkbox use_spares
+        * spare_sap_number
+        * spare_description
+        * spare_quantity_used
+        * spare_quantity_remaining
+
+    Wenn eine Ersatzteil-SAP-Nummer schon existiert:
+        - quantity_used wird aufaddiert
+        - quantity_remaining wird durch den neuen Wert ersetzt
     """
     entry = get_object_or_404(ShiftEntry, id=entry_id)
 
@@ -196,12 +211,7 @@ def update_entry(request, entry_id):
             action_time = form.cleaned_data["action_time"]
             new_status = form.cleaned_data["status"] or entry.status
 
-            # Ersatzteil-Freitext anhängen, falls ausgefüllt
-            spare_info = form.cleaned_data.get("spare_info")
-            if spare_info:
-                comment = comment + "\n\n[Ersatzteile]:\n" + spare_info
-
-            # Historien-Eintrag speichern
+            # Historien-Eintrag speichern (nur Ergänzung, Originaltext bleibt unberührt)
             update = ShiftEntryUpdate.objects.create(
                 entry=entry,
                 user=request.user,
@@ -226,14 +236,52 @@ def update_entry(request, entry_id):
             if video_file:
                 ShiftEntryVideo.objects.create(entry=entry, video=video_file)
 
+            # -------------------------------------------------
+            # Ersatzteile aus der Ergänzung zusammenführen
+            # -------------------------------------------------
+            if form.cleaned_data.get("use_spares"):
+                sap = form.cleaned_data.get("spare_sap_number")
+                desc = form.cleaned_data.get("spare_description")
+                qty_used = form.cleaned_data.get("spare_quantity_used")
+                qty_rem = form.cleaned_data.get("spare_quantity_remaining")
+
+                # Nur wenn eine SAP-Nummer angegeben wurde
+                if sap:
+                    spare, created = SparePart.objects.get_or_create(
+                        entry=entry,
+                        sap_number=sap,
+                        defaults={
+                            "description": desc or "",
+                            "quantity_used": qty_used or 0,
+                            "quantity_remaining": qty_rem if qty_rem is not None else 0,
+                            "created_by": request.user,
+                        },
+                    )
+
+                    if not created:
+                        # Menge wird addiert
+                        spare.quantity_used = (spare.quantity_used or 0) + (qty_used or 0)
+
+                        # Restbestand wird ersetzt, falls im Formular eingetragen
+                        if qty_rem is not None:
+                            spare.quantity_remaining = qty_rem
+
+                        # Beschreibung optional aktualisieren
+                        if desc:
+                            spare.description = desc
+
+                        spare.save()
+
             return redirect("entry_detail", entry_id=entry.id)
     else:
         # Default: jetzt, auf volle Minute gerundet, Status = aktueller Status
         now = timezone.now().replace(second=0, microsecond=0)
-        form = ShiftEntryUpdateForm(initial={
-            "action_time": now,
-            "status": entry.status,
-        })
+        form = ShiftEntryUpdateForm(
+            initial={
+                "action_time": now,
+                "status": entry.status,
+            }
+        )
 
     return render(request, "buch/entry_update.html", {
         "entry": entry,
