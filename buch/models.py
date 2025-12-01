@@ -40,6 +40,7 @@ class ShiftEntry(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     date = models.DateField()
+    time = models.TimeField(default=None, null=True, blank=True)
     shift = models.CharField(max_length=1, choices=SHIFT_CHOICES)
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)

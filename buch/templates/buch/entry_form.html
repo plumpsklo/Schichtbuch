@@ -5,6 +5,14 @@
 {% block content %}
 <h2>Neuer Schichtbucheintrag</h2>
 
+{% if form.non_field_errors %}
+    <div class="errors">
+        {% for error in form.non_field_errors %}
+            {{ error }}<br>
+        {% endfor %}
+    </div>
+{% endif %}
+
 {% if form.errors %}
     <div class="errors">
         Bitte die markierten Felder überprüfen.
@@ -14,46 +22,62 @@
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
 
+    <h3>Allgemeine Daten</h3>
+
     <div class="field">
         {{ form.date.label_tag }}
         {{ form.date }}
         {{ form.date.errors }}
     </div>
+
+    <div class="field">
+        {{ form.time.label_tag }}
+        {{ form.time }}
+        {{ form.time.errors }}
+    </div>
+
     <div class="field">
         {{ form.shift.label_tag }}
         {{ form.shift }}
         {{ form.shift.errors }}
     </div>
+
     <div class="field">
         {{ form.machine.label_tag }}
         {{ form.machine }}
         {{ form.machine.errors }}
     </div>
+
     <div class="field">
         {{ form.category.label_tag }}
         {{ form.category }}
         {{ form.category.errors }}
     </div>
+
     <div class="field">
         {{ form.title.label_tag }}
         {{ form.title }}
         {{ form.title.errors }}
     </div>
+
     <div class="field">
         {{ form.description.label_tag }}
         {{ form.description }}
         {{ form.description.errors }}
     </div>
+
     <div class="field">
         {{ form.duration_minutes.label_tag }}
         {{ form.duration_minutes }}
         {{ form.duration_minutes.errors }}
     </div>
+
     <div class="field">
         {{ form.priority.label_tag }}
         {{ form.priority }}
         {{ form.priority.errors }}
     </div>
+
     <div class="field">
         {{ form.status.label_tag }}
         {{ form.status }}
@@ -61,11 +85,12 @@
     </div>
 
     <hr>
+
     <h3>Ersatzteile</h3>
 
     <div class="field">
-        {{ form.used_spare_parts.label_tag }}
         {{ form.used_spare_parts }}
+        {{ form.used_spare_parts.label_tag }}
         {{ form.used_spare_parts.errors }}
     </div>
 
@@ -94,6 +119,8 @@
 
     <hr>
 
+    <h3>Medien</h3>
+
     <div class="field">
         {{ form.image.label_tag }}
         {{ form.image }}
@@ -113,6 +140,7 @@
     </div>
 
     <button type="submit" class="btn btn-primary">Speichern</button>
+    <a href="{% url 'home' %}" class="btn">Abbrechen</a>
 </form>
 
 <script>
