@@ -15,6 +15,13 @@ urlpatterns = [
     # 🔧 Eintrag ergänzen / bearbeiten
     path('eintrag/<int:entry_id>/update/', views.update_entry, name='update_entry'),
 
+        # SAP-Bearbeitungsstatus für Ersatzteile toggeln (nur Meister/Admin)
+    path(
+        'eintrag/<int:entry_id>/spares-toggle/',
+        views.toggle_spare_parts_processed,
+        name='toggle_spare_parts_processed',
+    ),
+
     # Debug-Seite für Medien
     path('debug-media/', views.debug_media, name='debug_media'),
 

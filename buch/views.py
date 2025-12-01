@@ -5,10 +5,11 @@ import json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .models import (
     ShiftEntry,
@@ -25,6 +26,18 @@ from .forms import ShiftEntryForm, ShiftEntryUpdateForm
 # -------------------------------------------------------------------
 @login_required
 def home(request):
+    """
+    Übersicht / Dashboard:
+    - Statistik-Kacheln (heute / Woche / offen / erledigt)
+    - Top-Maschinen nach Störung
+    - Diagramme:
+      * Verteilung nach Status
+      * Einträge pro Tag (letzte 7 Tage)
+    - Letzte 20 Einträge
+    - Für Meister/Admin zusätzlich:
+      * Benachrichtigungsliste für Einträge mit offenen Ersatzteil-Buchungen
+        (Ersatzteile verwendet, aber nicht als 'in SAP verbucht' markiert).
+    """
     today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())  # Montag (Wochenanfang)
 
@@ -92,6 +105,38 @@ def home(request):
         .order_by("-date", "-created_at")[:20]
     )
 
+    # --- Rolle: ist der aktuelle Benutzer Meister/Admin? ---
+    user = request.user
+    is_admin_or_meister = (
+        user.is_authenticated
+        and (
+            user.is_superuser
+            or user.is_staff
+            or user.groups.filter(name__in=["Admin", "Meister"]).exists()
+        )
+    )
+
+    # --- Benachrichtigungen: offene Ersatzteil-Buchungen (nur für Meister/Admin) ---
+    notifications = []
+    notifications_count = 0
+
+    if is_admin_or_meister:
+        # Bedingung:
+        # - Ersatzteile verwendet (alte Felder oder strukturierte SpareParts)
+        # - noch nicht in SAP verbucht
+        notifications_qs = (
+            ShiftEntry.objects
+            .select_related("machine", "user")
+            .filter(spare_parts_processed=False)
+            .filter(
+                Q(used_spare_parts=True) | Q(spare_parts__isnull=False)
+            )
+            .order_by("-date", "-created_at")
+            .distinct()[:50]
+        )
+        notifications = list(notifications_qs)
+        notifications_count = len(notifications)
+
     context = {
         "entries_today": entries_today,
         "entries_week": entries_week,
@@ -104,6 +149,10 @@ def home(request):
         "status_data_json": json.dumps(status_data),
         "date_labels_json": json.dumps(date_labels),
         "date_data_json": json.dumps(date_data),
+        # Benachrichtigungen / Rolleninfo
+        "is_admin_or_meister": is_admin_or_meister,
+        "notifications": notifications,
+        "notifications_count": notifications_count,
     }
     return render(request, "buch/home.html", context)
 
@@ -116,9 +165,10 @@ def new_entry(request):
     """
     Neuen Schichtbucheintrag anlegen.
     - Basisdaten über ShiftEntryForm
-    - optionale Medien
-    - Datum + Uhrzeit werden zu action_datetime kombiniert
-      (Form stellt sicher: nicht in der Zukunft)
+    - ggf. optionale Medien (Bild, Video)
+    - Datum + Uhrzeit werden zu action_datetime kombiniert (falls im Model vorhanden)
+      und/oder auf date/time-Felder gemappt.
+    Die Form stellt sicher, dass die Zeitangabe nicht in der Zukunft liegt.
     """
     if request.method == "POST":
         form = ShiftEntryForm(request.POST, request.FILES)
@@ -126,12 +176,14 @@ def new_entry(request):
             entry = form.save(commit=False)
             entry.user = request.user
 
-            # kombiniertes Datum+Uhrzeit aus der Form übernehmen
+            # kombiniertes Datum+Uhrzeit aus der Form übernehmen (falls verwendet)
             action_dt = form.cleaned_data.get("action_datetime")
             if action_dt:
-                entry.action_datetime = action_dt
-                # falls du möchtest, kannst du das date-Feld daraus setzen:
+                # Falls du im Model ein action_datetime-Feld hast, hier zuweisen:
+                # entry.action_datetime = action_dt
+                # Falls nicht, aber date/time befüllt werden sollen:
                 entry.date = action_dt.date()
+                entry.time = action_dt.time()
 
             entry.save()
 
@@ -163,7 +215,7 @@ def new_entry(request):
 @login_required
 def entry_detail(request, entry_id):
     """
-    Detailansicht:
+    Detailansicht eines Schichtbucheintrags:
     - zeigt Grunddaten, Bilder, Videos
     - zeigt Historie (ShiftEntryUpdate)
     - über can_view_spares wird gesteuert, wer Ersatzteile sieht:
@@ -171,10 +223,13 @@ def entry_detail(request, entry_id):
       * Meister
       * Ersteller
       * jeder, der einen Update-Eintrag zu diesem Eintrag geschrieben hat
+    - can_process_spares: steuert, ob der Benutzer den SAP-Status toggeln darf
+      (nur Admin/Meister).
     """
     entry = get_object_or_404(ShiftEntry, id=entry_id)
     user = request.user
 
+    # Rollen / Berechtigungen
     is_owner = (entry.user_id == user.id)
     is_admin_or_meister = (
         user.is_superuser
@@ -183,7 +238,11 @@ def entry_detail(request, entry_id):
     )
     has_updated = entry.updates.filter(user=user).exists()
 
+    # Ersatzteile sehen:
     can_view_spares = is_owner or is_admin_or_meister or has_updated
+
+    # Ersatzteile bearbeiten (SAP-Status toggeln) nur für Admin/Meister
+    can_process_spares = is_admin_or_meister
 
     # Likes
     likes_count = getattr(entry, "likes", None).count() if hasattr(entry, "likes") else 0
@@ -192,12 +251,13 @@ def entry_detail(request, entry_id):
         and entry.likes.filter(user=user).exists()
     )
 
-    # Historie
+    # Historie (Ergänzungen)
     updates = entry.updates.select_related("user").all()
 
     context = {
         "entry": entry,
         "can_view_spares": can_view_spares,
+        "can_process_spares": can_process_spares,
         "likes_count": likes_count,
         "user_liked": user_liked,
         "updates": updates,
@@ -215,13 +275,13 @@ def update_entry(request, entry_id):
     - Kommentar
     - Zeitpunkt der Maßnahme (Form prüft: nicht in der Zukunft)
     - optional neuer Status
-    - optionale Ersatzteil-Daten
+    - optionale Ersatzteil-Daten (alte Felder):
       -> wenn gleiche SAP-Nummer wie im Haupteintrag:
          * entnommene Anzahl wird addiert
          * Bestand wird durch neuen Wert ersetzt
       -> wenn andere SAP-Nummer oder bisher keine:
-         * Werte werden einfach gesetzt / überschrieben
-    - optionale zusätzliche Medien
+         * Werte werden gesetzt / überschrieben
+    - optionale zusätzliche Medien (Bild, Video)
     """
     entry = get_object_or_404(ShiftEntry, id=entry_id)
 
@@ -250,7 +310,7 @@ def update_entry(request, entry_id):
             # 1) Status setzen (noch nicht speichern)
             entry.status = new_status
 
-            # 2) Ersatzteil-Logik
+            # 2) Ersatzteil-Logik (alte Felder)
             if used_spare_parts and spare_sap:
                 entry.used_spare_parts = True
 
@@ -258,9 +318,8 @@ def update_entry(request, entry_id):
                 new_sap = spare_sap.strip()
 
                 # Beschreibung: nur setzen, wenn bisher leer
-                if spare_desc:
-                    if not entry.spare_part_description:
-                        entry.spare_part_description = spare_desc
+                if spare_desc and not entry.spare_part_description:
+                    entry.spare_part_description = spare_desc
 
                 if existing_sap and existing_sap == new_sap:
                     # Gleiche SAP-Nummer -> entnommene Anzahl addieren
@@ -279,7 +338,13 @@ def update_entry(request, entry_id):
                     if qty_remaining is not None:
                         entry.spare_part_quantity_remaining = qty_remaining
 
-            # 3) Änderungen am Haupteintrag einmal speichern
+                # Achtung: sobald erneut Ersatzteile eingetragen werden,
+                # kann die SAP-Buchung nicht mehr "gültig" sein -> zurücksetzen
+                entry.spare_parts_processed = False
+                entry.spare_parts_processed_by = None
+                entry.spare_parts_processed_at = None
+
+            # 3) Änderungen am Haupteintrag speichern
             entry.save()
 
             # -----------------------------
@@ -318,6 +383,56 @@ def update_entry(request, entry_id):
         "entry": entry,
         "form": form,
     })
+
+
+# -------------------------------------------------------------------
+# SAP-Bearbeitungsstatus für Ersatzteile toggeln (nur Meister/Admin)
+# -------------------------------------------------------------------
+@login_required
+@require_POST
+def toggle_spare_parts_processed(request, entry_id):
+    """
+    Meister-/Admin-Funktion:
+    Schaltet das Flag 'spare_parts_processed' für einen Eintrag um.
+
+    Bedingungen:
+    - Benutzer muss Admin/Meister sein.
+    - Für den Eintrag müssen überhaupt Ersatzteile erfasst sein
+      (entweder alte Felder oder strukturierte SpareParts).
+    """
+    entry = get_object_or_404(ShiftEntry, id=entry_id)
+    user = request.user
+
+    # Rolle prüfen
+    is_admin_or_meister = (
+        user.is_superuser
+        or user.is_staff
+        or user.groups.filter(name__in=["Admin", "Meister"]).exists()
+    )
+
+    if not is_admin_or_meister:
+        return redirect("entry_detail", entry_id=entry.id)
+
+    # Wenn keine Ersatzteile erfasst sind, macht der Haken keinen Sinn
+    if not entry.has_any_spare_parts:
+        return redirect("entry_detail", entry_id=entry.id)
+
+    # Status umschalten
+    new_state = not entry.spare_parts_processed
+    entry.spare_parts_processed = new_state
+
+    if new_state:
+        # Jetzt als bearbeitet markiert -> User + Zeitstempel setzen
+        entry.spare_parts_processed_by = user
+        entry.spare_parts_processed_at = timezone.now()
+    else:
+        # Zurückgesetzt -> Felder leeren
+        entry.spare_parts_processed_by = None
+        entry.spare_parts_processed_at = None
+
+    entry.save()
+
+    return redirect("entry_detail", entry_id=entry.id)
 
 
 # -------------------------------------------------------------------

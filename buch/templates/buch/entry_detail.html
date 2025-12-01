@@ -6,26 +6,56 @@
 <h2>Schichtbucheintrag</h2>
 
 <table>
-    <tr><th>Datum</th><td>{{ entry.date }}</td></tr>
-    <tr><th>Uhrzeit</th><td>
-        {% if entry.time %}
-            {{ entry.time }}
-        {% else %}
-            -
-        {% endif %}
-    </td></tr>
-    <tr><th>Schicht</th><td>{{ entry.get_shift_display }}</td></tr>
-    <tr><th>Maschine</th><td>{{ entry.machine }}</td></tr>
-    <tr><th>Kategorie</th><td>{{ entry.get_category_display }}</td></tr>
+    <tr>
+        <th>Datum</th>
+        <td>{{ entry.date }}</td>
+    </tr>
+    <tr>
+        <th>Uhrzeit</th>
+        <td>
+            {% if entry.time %}
+                {{ entry.time }}
+            {% else %}
+                -
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>Schicht</th>
+        <td>{{ entry.get_shift_display }}</td>
+    </tr>
+    <tr>
+        <th>Maschine</th>
+        <td>{{ entry.machine }}</td>
+    </tr>
+    <tr>
+        <th>Kategorie</th>
+        <td>{{ entry.get_category_display }}</td>
+    </tr>
     <tr>
         <th>Status</th>
         <td class="status-{{ entry.status }}">
-        {{ entry.get_status_display }}
+            {{ entry.get_status_display }}
         </td>
     </tr>
-    <tr><th>Dauer (min)</th><td>{{ entry.duration_minutes }}</td></tr>
-    <tr><th>Priorität</th><td>{{ entry.priority }}</td></tr>
-    <tr><th>Mitarbeiter</th><td>{{ entry.user.username }}</td></tr>
+    <tr>
+        <th>Dauer (min)</th>
+        <td>
+            {% if entry.duration_minutes %}
+                {{ entry.duration_minutes }}
+            {% else %}
+                -
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>Priorität</th>
+        <td>{{ entry.priority }}</td>
+    </tr>
+    <tr>
+        <th>Mitarbeiter</th>
+        <td>{{ entry.user.username }}</td>
+    </tr>
 </table>
 
 <h3>Titel</h3>
@@ -34,31 +64,130 @@
 <h3>Beschreibung</h3>
 <p>{{ entry.description|linebreaks }}</p>
 
-{% if entry.used_spare_parts and can_view_spares %}
-    <h3>Ersatzteile</h3>
-    <table>
-        <tr>
-            <th>Beschreibung</th>
-            <td>{{ entry.spare_part_description }}</td>
-        </tr>
-        <tr>
-            <th>SAP-Nummer</th>
-            <td>{{ entry.spare_part_sap_number }}</td>
-        </tr>
-        <tr>
-            <th>Entnommene Anzahl</th>
-            <td>{{ entry.spare_part_quantity_used }}</td>
-        </tr>
-        <tr>
-            <th>Bestand nach Entnahme</th>
-            <td>{{ entry.spare_part_quantity_remaining }}</td>
-        </tr>
-    </table>
 
-{% elif entry.used_spare_parts %}
-    <!-- Es wurden Ersatzteile genutzt, aber Benutzer ist nicht berechtigt -->
-    <p><em>Ersatzteile wurden verwendet. Details sind nur für Meister/Admin oder den Ersteller sichtbar.</em></p>
+{# --------------------------------------------------------- #}
+{# Ersatzteile + SAP-Bearbeitungsstatus                      #}
+{# --------------------------------------------------------- #}
+
+{% if entry.has_any_spare_parts and can_view_spares %}
+    <h3>Ersatzteile</h3>
+
+    {# Alte, einfache Felder (für Bestandsdaten) #}
+    {% if entry.used_spare_parts %}
+        <h4>Alte Ersatzteil-Angaben</h4>
+        <table>
+            <tr>
+                <th>Beschreibung</th>
+                <td>{{ entry.spare_part_description }}</td>
+            </tr>
+            <tr>
+                <th>SAP-Nummer</th>
+                <td>{{ entry.spare_part_sap_number }}</td>
+            </tr>
+            <tr>
+                <th>Entnommene Anzahl</th>
+                <td>{{ entry.spare_part_quantity_used }}</td>
+            </tr>
+            <tr>
+                <th>Bestand nach Entnahme</th>
+                <td>{{ entry.spare_part_quantity_remaining }}</td>
+            </tr>
+        </table>
+    {% endif %}
+
+    {# Strukturierte Ersatzteile (SparePart-Modell) #}
+    {% if entry.spare_parts.all %}
+        <h4>Strukturierte Ersatzteile</h4>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SAP-Nummer</th>
+                        <th>Beschreibung</th>
+                        <th>Entnommene Anzahl</th>
+                        <th>Bestand nach Entnahme</th>
+                        <th>Erfasst von</th>
+                        <th>Erfasst am</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in entry.spare_parts.all %}
+                        <tr>
+                            <td>{{ part.sap_number }}</td>
+                            <td>{{ part.description }}</td>
+                            <td>{{ part.quantity_used }}</td>
+                            <td>{{ part.quantity_remaining }}</td>
+                            <td>
+                                {% if part.created_by %}
+                                    {{ part.created_by.username }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ part.created_at|date:"d.m.Y H:i" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {# SAP-Bearbeitung #}
+    <h4>Verbuchung in SAP</h4>
+
+    {% if can_process_spares %}
+        <form method="post"
+              action="{% url 'toggle_spare_parts_processed' entry.id %}"
+              style="margin-top:8px; margin-bottom:10px;">
+            {% csrf_token %}
+            <label>
+                <input type="checkbox"
+                       name="processed"
+                       onchange="this.form.submit()"
+                       {% if entry.spare_parts_processed %}checked{% endif %}>
+                Entnahme in SAP verbucht
+            </label>
+
+            {% if entry.spare_parts_processed %}
+                <div style="font-size:12px; color: var(--muted-text, #666); margin-top:4px;">
+                    Bestätigt
+                    {% if entry.spare_parts_processed_by %}
+                        von {{ entry.spare_parts_processed_by.username }}
+                    {% endif %}
+                    {% if entry.spare_parts_processed_at %}
+                        am {{ entry.spare_parts_processed_at|date:"d.m.Y H:i" }}
+                    {% endif %}
+                </div>
+            {% endif %}
+        </form>
+    {% else %}
+        {% if entry.spare_parts_processed %}
+            <p><em>
+                Die Entnahme wurde in SAP verbucht.
+                {% if entry.spare_parts_processed_at %}
+                    ({{ entry.spare_parts_processed_at|date:"d.m.Y H:i" }})
+                {% endif %}
+                {% if entry.spare_parts_processed_by %}
+                    durch {{ entry.spare_parts_processed_by.username }}
+                {% endif %}
+            </em></p>
+        {% else %}
+            <p><em>Die Entnahme ist noch nicht in SAP als bearbeitet markiert.</em></p>
+        {% endif %}
+    {% endif %}
+
+{% elif entry.has_any_spare_parts %}
+    {# Es wurden Ersatzteile verwendet, aber Benutzer darf Details nicht sehen #}
+    <p><em>
+        Ersatzteile wurden verwendet. Details sind nur für Meister/Admin,
+        den Ersteller oder Benutzer mit Ergänzungen zu diesem Eintrag sichtbar.
+    </em></p>
 {% endif %}
+
+
+{# --------------------------------------------------------- #}
+{# Bilder                                                    #}
+{# --------------------------------------------------------- #}
 
 {% if entry.images.all %}
     <h3>Bilder</h3>
@@ -74,7 +203,11 @@
     <p><em>Keine Bilder vorhanden.</em></p>
 {% endif %}
 
-{# 🔥 NEU: Videos #}
+
+{# --------------------------------------------------------- #}
+{# Videos                                                    #}
+{# --------------------------------------------------------- #}
+
 {% if entry.videos.all %}
     <h3>Videos</h3>
     {% for vid in entry.videos.all %}
@@ -92,10 +225,15 @@
     <p><em>Keine Videos vorhanden.</em></p>
 {% endif %}
 
-{% if entry.updates.all %}
+
+{# --------------------------------------------------------- #}
+{# Ergänzungen / Historie                                    #}
+{# --------------------------------------------------------- #}
+
+{% if updates %}
     <h3>Ergänzungen / Historie</h3>
     <ul>
-        {% for upd in entry.updates.all %}
+        {% for upd in updates %}
             <li style="margin-bottom:10px;">
                 <strong>{{ upd.action_time|date:"d.m.Y H:i" }}</strong>
                 – ergänzt von {{ upd.user.username }}
@@ -110,16 +248,24 @@
     </ul>
 {% endif %}
 
+
+{# --------------------------------------------------------- #}
+{# Likes                                                     #}
+{# --------------------------------------------------------- #}
+
 <form action="{% url 'toggle_like' entry.id %}" method="post" style="margin-top:15px;">
     {% csrf_token %}
-
     <button type="submit" class="btn">
-        👍 Like ({{ entry.likes.count }})
+        👍 Like ({{ likes_count }})
     </button>
-
 </form>
 
-<p>
+
+{# --------------------------------------------------------- #}
+{# Aktionen                                                  #}
+{# --------------------------------------------------------- #}
+
+<p style="margin-top:15px;">
     <a href="{% url 'home' %}" class="btn">← Zurück</a>
     <a href="{% url 'update_entry' entry.id %}" class="btn btn-primary">Eintrag ergänzen</a>
 </p>
