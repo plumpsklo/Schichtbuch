@@ -116,18 +116,23 @@ def new_entry(request):
     """
     Neuen Schichtbucheintrag anlegen.
     - Basisdaten über ShiftEntryForm
-    - optional ein Bild
-    - optional ein Video
-    - Ersatzteil-Felder direkt im Modell (ein Satz Felder)
-    Die Prüfung "kein Datum/Uhrzeit in der Zukunft" macht die Form-Klasse.
+    - optionale Medien
+    - Datum + Uhrzeit werden zu action_datetime kombiniert
+      (Form stellt sicher: nicht in der Zukunft)
     """
     if request.method == "POST":
         form = ShiftEntryForm(request.POST, request.FILES)
         if form.is_valid():
             entry = form.save(commit=False)
             entry.user = request.user
-            # Zeit wird aktuell nur zur Validierung genutzt,
-            # gespeichert wird weiterhin das Datum im Modell.
+
+            # kombiniertes Datum+Uhrzeit aus der Form übernehmen
+            action_dt = form.cleaned_data.get("action_datetime")
+            if action_dt:
+                entry.action_datetime = action_dt
+                # falls du möchtest, kannst du das date-Feld daraus setzen:
+                entry.date = action_dt.date()
+
             entry.save()
 
             # Bild (optional)
@@ -145,7 +150,7 @@ def new_entry(request):
         now = timezone.localtime().replace(second=0, microsecond=0)
         initial = {
             "date": now.date(),      # Datum = heute
-            "time": now.time(),      # Uhrzeit = jetzt (für das neue Feld in der Form)
+            "time": now.time(),      # Uhrzeit = jetzt
         }
         form = ShiftEntryForm(initial=initial)
 
@@ -208,7 +213,7 @@ def update_entry(request, entry_id):
     """
     Ergänzung zu einem vorhandenen Eintrag:
     - Kommentar
-    - Zeitpunkt der Maßnahme (vom Benutzer gewählt, nicht in der Zukunft – Form prüft)
+    - Zeitpunkt der Maßnahme (Form prüft: nicht in der Zukunft)
     - optional neuer Status
     - optionale Ersatzteil-Daten
       -> wenn gleiche SAP-Nummer wie im Haupteintrag:
@@ -216,8 +221,7 @@ def update_entry(request, entry_id):
          * Bestand wird durch neuen Wert ersetzt
       -> wenn andere SAP-Nummer oder bisher keine:
          * Werte werden einfach gesetzt / überschrieben
-    - optional zusätzliches Bild
-    - optional zusätzliches Video
+    - optionale zusätzliche Medien
     """
     entry = get_object_or_404(ShiftEntry, id=entry_id)
 

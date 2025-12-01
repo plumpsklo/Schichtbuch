@@ -1,15 +1,26 @@
+import datetime
+
 from django import forms
 from django.utils import timezone
-import datetime
 
 from .models import ShiftEntry, ShiftEntryUpdate
 
 
-# ---------------------------------------------------------
-# ✔ FORMULAR FÜR NEUEN EINTRAG
-# ---------------------------------------------------------
-
 class ShiftEntryForm(forms.ModelForm):
+    """
+    Formular für NEUEN Eintrag.
+    Zusätzlich:
+    - Uhrzeit-Feld (time)
+    - optionale Felder für Bild/Video
+    - Validierung: Datum/Uhrzeit nicht in der Zukunft
+    """
+
+    # extra Feld nur im Formular (wird zu action_datetime kombiniert)
+    time = forms.TimeField(
+        required=True,
+        label="Uhrzeit",
+        widget=forms.TimeInput(attrs={"type": "time"}),
+    )
 
     image = forms.ImageField(required=False, label="Bild (optional)")
     video = forms.FileField(required=False, label="Video (optional)")
@@ -18,7 +29,7 @@ class ShiftEntryForm(forms.ModelForm):
         model = ShiftEntry
         fields = [
             "date",
-            "time",
+            "time",  # <== nur Formular, nicht im Modell
             "shift",
             "machine",
             "category",
@@ -28,7 +39,7 @@ class ShiftEntryForm(forms.ModelForm):
             "priority",
             "status",
 
-            # Ersatzteile
+            # Ersatzteile (Basis-Eintrag)
             "used_spare_parts",
             "spare_part_description",
             "spare_part_sap_number",
@@ -37,7 +48,6 @@ class ShiftEntryForm(forms.ModelForm):
         ]
         labels = {
             "date": "Datum",
-            "time": "Uhrzeit",
             "shift": "Schicht",
             "machine": "Maschine",
             "category": "Kategorie",
@@ -55,34 +65,42 @@ class ShiftEntryForm(forms.ModelForm):
         }
         widgets = {
             "date": forms.DateInput(attrs={"type": "date"}),
-            "time": forms.TimeInput(attrs={"type": "time"}),
             "duration_minutes": forms.NumberInput(attrs={"min": 0}),
         }
 
-    # ❗ Validation: Kein Datum/Zeit in der Zukunft
     def clean(self):
-        cleaned = super().clean()
+        cleaned_data = super().clean()
+        date = cleaned_data.get("date")
+        time_value = cleaned_data.get("time")
 
-        date = cleaned.get("date")
-        time = cleaned.get("time")
+        if date and time_value:
+            # Datum + Uhrzeit zu einem AWARE datetime kombinieren
+            dt_naive = datetime.datetime.combine(date, time_value)
+            dt_aware = timezone.make_aware(
+                dt_naive,
+                timezone.get_current_timezone(),
+            )
 
-        if date and time:
-            dt = datetime.datetime.combine(date, time)
-            dt = timezone.make_aware(dt)
-
-            if dt > timezone.now():
+            if dt_aware > timezone.now():
                 raise forms.ValidationError(
-                    "Datum oder Uhrzeit liegt in der Zukunft. Bitte korrigieren."
+                    "Datum und Uhrzeit dürfen nicht in der Zukunft liegen."
                 )
 
-        return cleaned
+            # Merken, damit die View es ins Modell schreiben kann
+            cleaned_data["action_datetime"] = dt_aware
 
+        return cleaned_data
 
-# ---------------------------------------------------------
-# ✔ FORMULAR FÜR ERGÄNZUNGEN
-# ---------------------------------------------------------
 
 class ShiftEntryUpdateForm(forms.ModelForm):
+    """
+    Formular für ERGÄNZUNG eines bestehenden Eintrags.
+    - eigener Kommentar
+    - frei wählbare Uhrzeit (action_time)
+    - optional neuer Status
+    - optionale Ersatzteil-Felder (wie beim Erstellen)
+    - optional Bild / Video
+    """
 
     # Neuer Status (optional)
     status = forms.ChoiceField(
@@ -91,7 +109,7 @@ class ShiftEntryUpdateForm(forms.ModelForm):
         label="Neuer Status",
     )
 
-    # Ersatzteilfelder wie beim Erstellen
+    # Ersatzteil-Felder (wie beim Erstellen)
     used_spare_parts = forms.BooleanField(
         required=False,
         label="Ersatzteile verwendet",
@@ -132,18 +150,22 @@ class ShiftEntryUpdateForm(forms.ModelForm):
             "action_time": "Zeitpunkt der Maßnahme",
         }
         widgets = {
-            "action_time": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "action_time": forms.DateTimeInput(
+                attrs={"type": "datetime-local"}
+            ),
         }
 
-    # ❗ Validation: Keine zukünftige Zeit
-    def clean(self):
-        cleaned = super().clean()
-
-        action_time = cleaned.get("action_time")
-
-        if action_time and action_time > timezone.now():
-            raise forms.ValidationError(
-                "Der gewählte Zeitpunkt liegt in der Zukunft."
-            )
-
-        return cleaned
+    def clean_action_time(self):
+        action_time = self.cleaned_data.get("action_time")
+        if action_time:
+            # sicherstellen, dass aware und nicht in der Zukunft
+            if timezone.is_naive(action_time):
+                action_time = timezone.make_aware(
+                    action_time,
+                    timezone.get_current_timezone(),
+                )
+            if action_time > timezone.now():
+                raise forms.ValidationError(
+                    "Der Zeitpunkt der Maßnahme darf nicht in der Zukunft liegen."
+                )
+        return action_time

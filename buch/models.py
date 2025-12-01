@@ -6,9 +6,9 @@ from django.contrib.auth.models import User
 # Maschinen
 # ---------------------------------------------------
 class Machine(models.Model):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=100, blank=True)
-    manufacturer = models.CharField(max_length=100, blank=True)
+    name = models.CharField(max_length=100)                       # z.B. "RBG-01"
+    location = models.CharField(max_length=100, blank=True)       # z.B. "Halle 2"
+    manufacturer = models.CharField(max_length=100, blank=True)   # z.B. "Siemens"
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -20,46 +20,107 @@ class Machine(models.Model):
 # ---------------------------------------------------
 class ShiftEntry(models.Model):
     SHIFT_CHOICES = [
-        ('F', 'Frühschicht'),
-        ('S', 'Spätschicht'),
-        ('N', 'Nachtschicht'),
+        ("F", "Frühschicht"),
+        ("S", "Spätschicht"),
+        ("N", "Nachtschicht"),
     ]
 
     CATEGORY_CHOICES = [
-        ('STOER', 'Störung'),
-        ('WART', 'Wartung'),
-        ('UMBAU', 'Umbau'),
-        ('KONT', 'Kontrolle / Inspektion'),
+        ("STOER", "Störung"),
+        ("WART", "Wartung"),
+        ("UMBAU", "Umbau"),
+        ("KONT", "Kontrolle / Inspektion"),
     ]
 
     STATUS_CHOICES = [
-        ('OFFEN', 'Offen'),
-        ('IN_ARB', 'In Bearbeitung'),
-        ('ERLED', 'Erledigt'),
+        ("OFFEN", "Offen"),
+        ("IN_ARB", "In Bearbeitung"),
+        ("ERLED", "Erledigt"),
     ]
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # Datum & Uhrzeit des Eintrags
     date = models.DateField()
-    time = models.TimeField(default=None, null=True, blank=True)
-    shift = models.CharField(max_length=1, choices=SHIFT_CHOICES)
+    time = models.TimeField(
+        default=None,
+        null=True,
+        blank=True,
+        verbose_name="Uhrzeit",
+    )
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    machine = models.ForeignKey(Machine, on_delete=models.CASCADE)
+    shift = models.CharField(
+        max_length=1,
+        choices=SHIFT_CHOICES,
+        verbose_name="Schicht",
+    )
 
-    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES)
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name="Mitarbeiter",
+    )
+    machine = models.ForeignKey(
+        Machine,
+        on_delete=models.CASCADE,
+        verbose_name="Maschine",
+    )
 
-    duration_minutes = models.PositiveIntegerField(null=True, blank=True)
-    priority = models.PositiveIntegerField(default=2)  # 1=hoch, 2=normal, 3=niedrig
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='OFFEN')
+    category = models.CharField(
+        max_length=10,
+        choices=CATEGORY_CHOICES,
+        verbose_name="Kategorie",
+    )
+    title = models.CharField(
+        max_length=200,
+        verbose_name="Titel",
+    )
+    description = models.TextField(
+        blank=True,
+        verbose_name="Beschreibung",
+    )
 
-    # ⚠️ Alte Ersatzteil-Felder (werden später NICHT gelöscht)
-    used_spare_parts = models.BooleanField(default=False)
-    spare_part_description = models.CharField(max_length=200, blank=True)
-    spare_part_sap_number = models.CharField(max_length=50, blank=True)
-    spare_part_quantity_used = models.PositiveIntegerField(null=True, blank=True)
-    spare_part_quantity_remaining = models.PositiveIntegerField(null=True, blank=True)
+    duration_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Dauer (Minuten)",
+    )
+    priority = models.PositiveIntegerField(
+        default=2,      # 1 = hoch, 2 = normal, 3 = niedrig
+        verbose_name="Priorität",
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="OFFEN",
+        verbose_name="Status",
+    )
+
+    # ⚠️ Alte Ersatzteil-Felder (für bestehende Daten / Anzeige)
+    used_spare_parts = models.BooleanField(
+        default=False,
+        verbose_name="(alt) Ersatzteile verwendet",
+    )
+    spare_part_description = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="(alt) Ersatzteil-Beschreibung",
+    )
+    spare_part_sap_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="(alt) SAP-Nummer",
+    )
+    spare_part_quantity_used = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="(alt) Entnommene Anzahl",
+    )
+    spare_part_quantity_remaining = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="(alt) Bestand nach Entnahme",
+    )
 
     def __str__(self):
         return f"{self.date} - {self.machine} - {self.title}"
@@ -73,22 +134,40 @@ class SparePart(models.Model):
         ShiftEntry,
         on_delete=models.CASCADE,
         related_name="spare_parts",
+        verbose_name="Eintrag",
     )
 
-    sap_number = models.CharField(max_length=50)
-    description = models.CharField(max_length=255, blank=True)
+    sap_number = models.CharField(
+        max_length=50,
+        verbose_name="SAP-Nummer",
+    )
+    description = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Beschreibung",
+    )
 
-    quantity_used = models.PositiveIntegerField(default=0)
-    quantity_remaining = models.PositiveIntegerField(default=0)
+    quantity_used = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Entnommene Anzahl",
+    )
+    quantity_remaining = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Bestand nach Entnahme",
+    )
 
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        verbose_name="Erfasst von",
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Erfasst am",
+    )
 
     class Meta:
         verbose_name = "Ersatzteil"
@@ -105,11 +184,22 @@ class ShiftEntryImage(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
         on_delete=models.CASCADE,
-        related_name='images'
+        related_name="images",
+        verbose_name="Eintrag",
     )
-    image = models.ImageField(upload_to='shift_images/')
-    comment = models.CharField(max_length=200, blank=True)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    image = models.ImageField(
+        upload_to="shift_images/",
+        verbose_name="Bild",
+    )
+    comment = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Kommentar",
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Hochgeladen am",
+    )
 
     def __str__(self):
         return f"Bild zu: {self.entry}"
@@ -122,11 +212,22 @@ class ShiftEntryVideo(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
         on_delete=models.CASCADE,
-        related_name='videos'
+        related_name="videos",
+        verbose_name="Eintrag",
     )
-    video = models.FileField(upload_to='shift_videos/')
-    comment = models.CharField(max_length=200, blank=True)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    video = models.FileField(
+        upload_to="shift_videos/",
+        verbose_name="Video",
+    )
+    comment = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Kommentar",
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Hochgeladen am",
+    )
 
     def __str__(self):
         return f"Video zu: {self.entry}"
@@ -139,13 +240,21 @@ class Like(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
         on_delete=models.CASCADE,
-        related_name='likes'
+        related_name="likes",
+        verbose_name="Eintrag",
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name="Benutzer",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Erstellt am",
+    )
 
     class Meta:
-        unique_together = ('entry', 'user')
+        unique_together = ("entry", "user")
 
     def __str__(self):
         return f"Like von {self.user} für {self.entry}"
@@ -158,28 +267,44 @@ class ShiftEntryUpdate(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
         on_delete=models.CASCADE,
-        related_name="updates"
+        related_name="updates",
+        verbose_name="Eintrag",
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name="Benutzer",
+    )
 
-    comment = models.TextField()
-    action_time = models.DateTimeField()
+    comment = models.TextField(
+        verbose_name="Ergänzung / Kommentar",
+    )
+    action_time = models.DateTimeField(
+        verbose_name="Zeitpunkt der Maßnahme",
+    )
 
     status_before = models.CharField(
         max_length=10,
         choices=ShiftEntry.STATUS_CHOICES,
-        blank=True
+        blank=True,
+        verbose_name="Status vorher",
     )
     status_after = models.CharField(
         max_length=10,
         choices=ShiftEntry.STATUS_CHOICES,
-        blank=True
+        blank=True,
+        verbose_name="Status nachher",
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Erfasst am",
+    )
 
     class Meta:
         ordering = ["action_time", "id"]
+        verbose_name = "Ergänzung"
+        verbose_name_plural = "Ergänzungen"
 
     def __str__(self):
         return f"Update zu {self.entry} von {self.user} am {self.action_time}"

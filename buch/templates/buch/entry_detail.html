@@ -7,6 +7,13 @@
 
 <table>
     <tr><th>Datum</th><td>{{ entry.date }}</td></tr>
+    <tr><th>Uhrzeit</th><td>
+        {% if entry.time %}
+            {{ entry.time }}
+        {% else %}
+            -
+        {% endif %}
+    </td></tr>
     <tr><th>Schicht</th><td>{{ entry.get_shift_display }}</td></tr>
     <tr><th>Maschine</th><td>{{ entry.machine }}</td></tr>
     <tr><th>Kategorie</th><td>{{ entry.get_category_display }}</td></tr>
