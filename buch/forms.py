@@ -4,64 +4,11 @@ from .models import ShiftEntry, ShiftEntryUpdate
 
 class ShiftEntryForm(forms.ModelForm):
     """
-    Formular für NEUE Einträge.
-    - Speichert nur die ShiftEntry-Felder direkt im Modell
-    - Zusätzlich:
-        * image  (optional, geht in ShiftEntryImage)
-        * video  (optional, geht in ShiftEntryVideo)
-        * used_spares + spare_… (nur Form-Felder – später zum Anlegen eines SparePart nutzbar)
+    Formular für NEUEN Eintrag.
+    Zusätzlich: optionale Felder für Bild/Video.
     """
-
-    image = forms.ImageField(
-        required=False,
-        label="Bild (optional)",
-        help_text="Optional ein Foto zur Störung oder Maßnahme hochladen.",
-    )
-
-    video = forms.FileField(
-        required=False,
-        label="Video (optional)",
-        help_text="Optional ein kurzes Video hochladen (z. B. 10–20 Sek.).",
-    )
-
-    # 🔧 Nur Formularfelder, KEINE Modellfelder
-    used_spares = forms.BooleanField(
-        required=False,
-        label="Ersatzteile verwendet?",
-    )
-
-    spare_description = forms.CharField(
-        required=False,
-        label="Ersatzteil-Beschreibung",
-        widget=forms.Textarea(
-            attrs={
-                "rows": 2,
-                "placeholder": "z.B.: Zahnriemen Antrieb RBG 1",
-            }
-        ),
-    )
-
-    spare_sap_number = forms.CharField(
-        required=False,
-        label="SAP-Nummer",
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": "z.B.: 123456789",
-            }
-        ),
-    )
-
-    spare_quantity_used = forms.IntegerField(
-        required=False,
-        label="Entnommene Anzahl",
-        min_value=0,
-    )
-
-    spare_quantity_remaining = forms.IntegerField(
-        required=False,
-        label="Restbestand",
-        min_value=0,
-    )
+    image = forms.ImageField(required=False, label="Bild (optional)")
+    video = forms.FileField(required=False, label="Video (optional)")
 
     class Meta:
         model = ShiftEntry
@@ -75,59 +22,96 @@ class ShiftEntryForm(forms.ModelForm):
             "duration_minutes",
             "priority",
             "status",
-            # ⚠️ HIER KEINE spare_*-Felder und KEIN used_spares eintragen!
+
+            # Ersatzteile (Basis-Eintrag)
+            "used_spare_parts",
+            "spare_part_description",
+            "spare_part_sap_number",
+            "spare_part_quantity_used",
+            "spare_part_quantity_remaining",
         ]
+        labels = {
+            "date": "Datum",
+            "shift": "Schicht",
+            "machine": "Maschine",
+            "category": "Kategorie",
+            "title": "Titel",
+            "description": "Beschreibung",
+            "duration_minutes": "Dauer (Minuten)",
+            "priority": "Priorität",
+            "status": "Status",
+
+            "used_spare_parts": "Ersatzteile verwendet",
+            "spare_part_description": "Beschreibung des Ersatzteils",
+            "spare_part_sap_number": "SAP-Nummer",
+            "spare_part_quantity_used": "Entnommene Anzahl",
+            "spare_part_quantity_remaining": "Bestand nach Entnahme",
+        }
         widgets = {
             "date": forms.DateInput(attrs={"type": "date"}),
+            "duration_minutes": forms.NumberInput(attrs={"min": 0}),
         }
 
 
 class ShiftEntryUpdateForm(forms.ModelForm):
     """
-    Formular für Ergänzungen zu einem bestehenden Eintrag.
-    - Überschreibt NICHT die ursprüngliche Beschreibung.
-    - Legt eine neue ShiftEntryUpdate-Zeile als Historie an.
-    - Kann zusätzlich ein Bild, Video und Ersatzteil-Info aufnehmen.
+    Formular für ERGÄNZUNG eines bestehenden Eintrags.
+    - eigener Kommentar
+    - frei wählbare Uhrzeit
+    - optional neuer Status
+    - optionale Ersatzteil-Felder (wie beim Erstellen)
+    - optional Bild / Video
     """
 
+    # Neuer Status (optional)
     status = forms.ChoiceField(
-        choices=[("", "Status unverändert")] + list(ShiftEntry.STATUS_CHOICES),
+        choices=ShiftEntry.STATUS_CHOICES,
         required=False,
-        label="Neuer Status (optional)",
+        label="Neuer Status",
     )
 
-    image = forms.ImageField(
+    # Ersatzteil-Felder (wie beim Erstellen)
+    used_spare_parts = forms.BooleanField(
         required=False,
-        label="Zusätzliches Bild",
-        help_text="Optional weiteres Bild zur Ergänzung hochladen.",
+        label="Ersatzteile verwendet",
+    )
+    spare_part_description = forms.CharField(
+        max_length=200,
+        required=False,
+        label="Beschreibung des Ersatzteils",
+    )
+    spare_part_sap_number = forms.CharField(
+        max_length=50,
+        required=False,
+        label="SAP-Nummer",
+    )
+    spare_part_quantity_used = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Entnommene Anzahl",
+    )
+    spare_part_quantity_remaining = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Bestand nach Entnahme",
     )
 
-    video = forms.FileField(
-        required=False,
-        label="Zusätzliches Video",
-        help_text="Optional weiteres Video zur Ergänzung hochladen.",
-    )
-
-    spare_info = forms.CharField(
-        required=False,
-        label="Ersatzteil-Informationen (optional)",
-        widget=forms.Textarea(
-            attrs={
-                "rows": 3,
-                "placeholder": "Z.B.: Zahnriemen, SAP 123456, 2 Stück entnommen, 5 verbleibend",
-            }
-        ),
-    )
+    # Medien
+    image = forms.ImageField(required=False, label="Zusätzliches Bild")
+    video = forms.FileField(required=False, label="Zusätzliches Video")
 
     class Meta:
         model = ShiftEntryUpdate
         fields = [
             "comment",
             "action_time",
-            # status_before / status_after setzt die View
         ]
+        labels = {
+            "comment": "Ergänzung / Kommentar",
+            "action_time": "Zeitpunkt der Maßnahme",
+        }
         widgets = {
             "action_time": forms.DateTimeInput(
-                attrs={"type": "datetime-local"},
-            )
+                attrs={"type": "datetime-local"}
+            ),
         }

@@ -6,13 +6,29 @@
 <h2>Eintrag ergänzen</h2>
 
 <p>
+    <strong>Datum:</strong> {{ entry.date }}<br>
+    <strong>Schicht:</strong> {{ entry.get_shift_display }}<br>
     <strong>Maschine:</strong> {{ entry.machine }}<br>
     <strong>Titel:</strong> {{ entry.title }}<br>
     <strong>Aktueller Status:</strong> {{ entry.get_status_display }}
 </p>
 
+<hr>
+
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="errors">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <div class="field">
+        {{ form.comment.label_tag }}
+        {{ form.comment }}
+        {{ form.comment.errors }}
+    </div>
 
     <div class="field">
         {{ form.action_time.label_tag }}
@@ -26,11 +42,43 @@
         {{ form.status.errors }}
     </div>
 
+    <hr>
+
+    <h3>Ersatzteile (optional)</h3>
+
     <div class="field">
-        {{ form.comment.label_tag }}
-        {{ form.comment }}
-        {{ form.comment.errors }}
+        {{ form.used_spare_parts }}
+        {{ form.used_spare_parts.label_tag }}
+        {{ form.used_spare_parts.errors }}
     </div>
+
+    <div class="field">
+        {{ form.spare_part_description.label_tag }}
+        {{ form.spare_part_description }}
+        {{ form.spare_part_description.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.spare_part_sap_number.label_tag }}
+        {{ form.spare_part_sap_number }}
+        {{ form.spare_part_sap_number.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.spare_part_quantity_used.label_tag }}
+        {{ form.spare_part_quantity_used }}
+        {{ form.spare_part_quantity_used.errors }}
+    </div>
+
+    <div class="field">
+        {{ form.spare_part_quantity_remaining.label_tag }}
+        {{ form.spare_part_quantity_remaining }}
+        {{ form.spare_part_quantity_remaining.errors }}
+    </div>
+
+    <hr>
+
+    <h3>Medien (optional)</h3>
 
     <div class="field">
         {{ form.image.label_tag }}
@@ -44,16 +92,9 @@
         {{ form.video.errors }}
     </div>
 
-    <div class="field">
-        {{ form.spare_info.label_tag }}
-        {{ form.spare_info }}
-        {% if form.spare_info.help_text %}
-            <small>{{ form.spare_info.help_text }}</small>
-        {% endif %}
-        {{ form.spare_info.errors }}
-    </div>
-
-    <button type="submit" class="btn btn-primary">Speichern</button>
-    <a href="{% url 'entry_detail' entry.id %}" class="btn">Abbrechen</a>
+    <p style="margin-top: 15px;">
+        <button type="submit" class="btn btn-primary">Ergänzung speichern</button>
+        <a href="{% url 'entry_detail' entry.id %}" class="btn">Abbrechen</a>
+    </p>
 </form>
 {% endblock %}

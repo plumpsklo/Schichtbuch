@@ -2,9 +2,12 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
+# ---------------------------------------------------
+# Maschinen
+# ---------------------------------------------------
 class Machine(models.Model):
-    name = models.CharField(max_length=100)  # z.B. "RBG-01"
-    location = models.CharField(max_length=100, blank=True)  # z.B. "Halle 2"
+    name = models.CharField(max_length=100)
+    location = models.CharField(max_length=100, blank=True)
     manufacturer = models.CharField(max_length=100, blank=True)
     is_active = models.BooleanField(default=True)
 
@@ -12,6 +15,9 @@ class Machine(models.Model):
         return self.name
 
 
+# ---------------------------------------------------
+# Haupt-Eintrag im Schichtbuch
+# ---------------------------------------------------
 class ShiftEntry(models.Model):
     SHIFT_CHOICES = [
         ('F', 'Frühschicht'),
@@ -33,8 +39,9 @@ class ShiftEntry(models.Model):
     ]
 
     created_at = models.DateTimeField(auto_now_add=True)
-    date = models.DateField()  # Datum der Tätigkeit
+    date = models.DateField()
     shift = models.CharField(max_length=1, choices=SHIFT_CHOICES)
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     machine = models.ForeignKey(Machine, on_delete=models.CASCADE)
 
@@ -43,39 +50,56 @@ class ShiftEntry(models.Model):
     description = models.TextField(blank=True)
 
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
-    priority = models.PositiveIntegerField(default=2)  # 1 = hoch, 2 = normal, 3 = niedrig
+    priority = models.PositiveIntegerField(default=2)  # 1=hoch, 2=normal, 3=niedrig
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='OFFEN')
 
-    # 🔧 Ersatzteil-Daten
-    used_spare_parts = models.BooleanField(
-        default=False,
-        verbose_name="Ersatzteile verwendet"
-    )
-    spare_part_description = models.CharField(
-        max_length=200,
-        blank=True,
-        verbose_name="Beschreibung des Ersatzteils"
-    )
-    spare_part_sap_number = models.CharField(
-        max_length=50,
-        blank=True,
-        verbose_name="SAP-Nummer"
-    )
-    spare_part_quantity_used = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        verbose_name="Entnommene Anzahl"
-    )
-    spare_part_quantity_remaining = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        verbose_name="Bestand nach Entnahme"
-    )
+    # ⚠️ Alte Ersatzteil-Felder (werden später NICHT gelöscht)
+    used_spare_parts = models.BooleanField(default=False)
+    spare_part_description = models.CharField(max_length=200, blank=True)
+    spare_part_sap_number = models.CharField(max_length=50, blank=True)
+    spare_part_quantity_used = models.PositiveIntegerField(null=True, blank=True)
+    spare_part_quantity_remaining = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.date} - {self.machine} - {self.title}"
 
 
+# ---------------------------------------------------
+# Strukturierte Ersatzteile (NEU, korrekt)
+# ---------------------------------------------------
+class SparePart(models.Model):
+    entry = models.ForeignKey(
+        ShiftEntry,
+        on_delete=models.CASCADE,
+        related_name="spare_parts",
+    )
+
+    sap_number = models.CharField(max_length=50)
+    description = models.CharField(max_length=255, blank=True)
+
+    quantity_used = models.PositiveIntegerField(default=0)
+    quantity_remaining = models.PositiveIntegerField(default=0)
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Ersatzteil"
+        verbose_name_plural = "Ersatzteile"
+
+    def __str__(self):
+        return f"{self.sap_number} ({self.entry_id})"
+
+
+# ---------------------------------------------------
+# Bilder
+# ---------------------------------------------------
 class ShiftEntryImage(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
@@ -90,6 +114,9 @@ class ShiftEntryImage(models.Model):
         return f"Bild zu: {self.entry}"
 
 
+# ---------------------------------------------------
+# Videos
+# ---------------------------------------------------
 class ShiftEntryVideo(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
@@ -104,6 +131,9 @@ class ShiftEntryVideo(models.Model):
         return f"Video zu: {self.entry}"
 
 
+# ---------------------------------------------------
+# Likes
+# ---------------------------------------------------
 class Like(models.Model):
     entry = models.ForeignKey(
         ShiftEntry,
@@ -118,21 +148,22 @@ class Like(models.Model):
 
     def __str__(self):
         return f"Like von {self.user} für {self.entry}"
-    
+
+
+# ---------------------------------------------------
+# Ergänzungen / Updates zu einem Eintrag
+# ---------------------------------------------------
 class ShiftEntryUpdate(models.Model):
     entry = models.ForeignKey(
-        "ShiftEntry",
+        ShiftEntry,
         on_delete=models.CASCADE,
         related_name="updates"
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    # Text, den der Bearbeiter ergänzt
-    comment = models.TextField()
 
-    # Zeitpunkt der tatsächlichen Maßnahme (vom Benutzer gewählt)
+    comment = models.TextField()
     action_time = models.DateTimeField()
 
-    # Status-Änderung protokollieren
     status_before = models.CharField(
         max_length=10,
         choices=ShiftEntry.STATUS_CHOICES,
