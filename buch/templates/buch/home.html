@@ -25,12 +25,29 @@
 </div>
 
 {# --------------------------------------------------------- #}
-{# TAB 1: Übersicht (nur die Eintragsliste + Pagination)    #}
+{# TAB 1: Übersicht – Liste + Pagination + per_page         #}
 {# --------------------------------------------------------- #}
 
 <div id="tab-overview" style="display: block;">
 
     <h3>Einträge der letzten 7 Tage</h3>
+
+    {# Auswahl Einträge pro Seite #}
+    <form method="get"
+          style="margin-bottom: 10px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <label for="per_page_select">Einträge pro Seite:</label>
+        <select id="per_page_select"
+                name="per_page"
+                onchange="this.form.submit()">
+            {% for option in per_page_options %}
+                <option value="{{ option }}"
+                        {% if per_page == option %}selected{% endif %}>
+                    {{ option }}
+                </option>
+            {% endfor %}
+        </select>
+        {# Beim Wechsel von per_page immer auf Seite 1 -> kein hidden page-Feld nötig #}
+    </form>
 
     <div class="table-wrapper">
         <table>
@@ -71,7 +88,7 @@
         <div class="pagination"
              style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}" class="btn">« Zurück</a>
+                <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}" class="btn">« Zurück</a>
             {% endif %}
 
             <span>
@@ -79,7 +96,7 @@
             </span>
 
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="btn">Weiter »</a>
+                <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}" class="btn">Weiter »</a>
             {% endif %}
         </div>
     {% endif %}
@@ -91,7 +108,7 @@
 
 
 {# --------------------------------------------------------- #}
-{# TAB 2: Statistiken (Diagramme + Kacheln)                 #}
+{# TAB 2: Statistiken (Kacheln + Diagramme)                 #}
 {# --------------------------------------------------------- #}
 
 <div id="tab-stats" style="display: none; margin-top: 10px;">
@@ -223,7 +240,6 @@ document.addEventListener("DOMContentLoaded", function () {
             tabNotifications.style.display = "block";
         });
     }
-
 
     // -------------------------------------------------
     // Status-Diagramm

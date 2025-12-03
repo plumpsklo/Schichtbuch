@@ -30,14 +30,9 @@ def home(request):
     """
     Übersicht / Dashboard:
     - Statistik-Kacheln (heute / Woche / offen / erledigt)
-    - Top-Maschinen nach Störung
-    - Diagramme:
-      * Verteilung nach Status
-      * Einträge pro Tag (letzte 7 Tage)
-    - Liste der Einträge der letzten 7 Tage (paginierbar)
-    - Für Meister/Admin zusätzlich:
-      * Benachrichtigungsliste für Einträge mit offenen Ersatzteil-Buchungen
-        (Ersatzteile verwendet, aber nicht als 'in SAP verbucht' markiert).
+    - Diagramme (eigener Tab)
+    - Liste der Einträge der letzten 7 Tage (paginierbar, per_page wählbar)
+    - Benachrichtigungen für Meister/Admin (eigener Tab)
     """
     today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())  # Montag (Wochenanfang)
@@ -51,14 +46,6 @@ def home(request):
     open_entries = ShiftEntry.objects.filter(status="OFFEN").count()
     done_entries = ShiftEntry.objects.filter(status="ERLED").count()
 
-    # --- Top-Maschinen nach Störung (optional) ---
-    top_machines = (
-        ShiftEntry.objects.filter(category="STOER")
-        .values("machine__name")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:5]
-    )
-
     # --- Diagramm 1: Verteilung nach Status (alle Einträge) ---
     status_qs = (
         ShiftEntry.objects
@@ -66,15 +53,12 @@ def home(request):
         .annotate(count=Count("id"))
         .order_by("status")
     )
-
     STATUS_LABELS = dict(ShiftEntry.STATUS_CHOICES)
-
     status_labels = []
     status_data = []
-
     for row in status_qs:
-        code = row["status"]                  # z.B. "OFFEN"
-        label = STATUS_LABELS.get(code, code) # z.B. "Offen"
+        code = row["status"]
+        label = STATUS_LABELS.get(code, code)
         status_labels.append(label)
         status_data.append(row["count"])
 
@@ -90,26 +74,38 @@ def home(request):
         .annotate(count=Count("id"))
         .order_by("date")
     )
-
     counts_by_date = {row["date"]: row["count"] for row in date_qs}
 
     date_labels = []
     date_data = []
-
     for i in range(days_back + 1):
         d = start_date + timedelta(days=i)
-        date_labels.append(d.strftime("%d.%m."))  # z.B. "27.11."
+        date_labels.append(d.strftime("%d.%m."))
         date_data.append(counts_by_date.get(d, 0))
 
-    # --- Einträge-Liste: nur Einträge der letzten 7 Tage, paginiert ---
+    # --- Einträge-Liste: nur Einträge der letzten 7 Tage ---
     entries_qs = (
         ShiftEntry.objects.select_related("machine", "user")
         .filter(date__gte=start_date, date__lte=today)
         .order_by("-date", "-created_at")
     )
 
-    # Anzahl pro Seite hier einstellbar (z.B. 10, 20, 50)
-    paginator = Paginator(entries_qs, 20)
+    # --- Einträge pro Seite (per_page) aus Query übernehmen ---
+    default_per_page = 20
+    try:
+        per_page = int(request.GET.get("per_page", default_per_page))
+    except (TypeError, ValueError):
+        per_page = default_per_page
+
+    if per_page < 5:
+        per_page = 5
+    if per_page > 200:
+        per_page = 200
+
+    # Optionen für das Dropdown
+    per_page_options = [10, 20, 50, 100]
+
+    paginator = Paginator(entries_qs, per_page)
     page_number = request.GET.get("page")
 
     try:
@@ -133,11 +129,7 @@ def home(request):
     # --- Benachrichtigungen: offene Ersatzteil-Buchungen (nur für Meister/Admin) ---
     notifications = []
     notifications_count = 0
-
     if is_admin_or_meister:
-        # Bedingung:
-        # - Ersatzteile verwendet (alte Felder oder strukturierte SpareParts)
-        # - noch nicht in SAP verbucht
         notifications_qs = (
             ShiftEntry.objects
             .select_related("machine", "user")
@@ -156,11 +148,13 @@ def home(request):
         "entries_week": entries_week,
         "open_entries": open_entries,
         "done_entries": done_entries,
-        "entries": entries_page,          # paginierte Einträge
-        "page_obj": entries_page,         # für Pagination im Template
+        # paginierte Einträge
+        "entries": entries_page,
+        "page_obj": entries_page,
         "is_paginated": paginator.num_pages > 1,
-        "top_machines": top_machines,
-        # Daten für Chart.js
+        "per_page": per_page,
+        "per_page_options": per_page_options,  # <--- NEU
+        # Diagramm-Daten
         "status_labels_json": json.dumps(status_labels),
         "status_data_json": json.dumps(status_data),
         "date_labels_json": json.dumps(date_labels),
