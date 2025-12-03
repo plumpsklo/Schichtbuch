@@ -7,20 +7,15 @@
 <h2>Übersicht</h2>
 
 {# --------------------------------------------------------- #}
-{# Tabs: Übersicht / Benachrichtigungen                     #}
+{# Tabs: Übersicht / Statistiken / Benachrichtigungen       #}
 {# --------------------------------------------------------- #}
 
-<div style="margin-bottom: 15px;">
-    <button type="button"
-            class="btn"
-            id="tab-overview-btn">
-        Übersicht
-    </button>
+<div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+    <button type="button" class="btn" id="tab-overview-btn">Übersicht</button>
+    <button type="button" class="btn" id="tab-stats-btn">Statistiken</button>
 
     {% if is_admin_or_meister %}
-        <button type="button"
-                class="btn"
-                id="tab-notifications-btn">
+        <button type="button" class="btn" id="tab-notifications-btn">
             Benachrichtigungen
             {% if notifications_count %}
                 ({{ notifications_count }})
@@ -30,49 +25,10 @@
 </div>
 
 {# --------------------------------------------------------- #}
-{# TAB 1: Übersicht (Dashboard)                             #}
+{# TAB 1: Übersicht (nur die Eintragsliste + Pagination)    #}
 {# --------------------------------------------------------- #}
 
 <div id="tab-overview" style="display: block;">
-
-    <!-- Statistiken oben -->
-    <div class="stats">
-        <div class="stat-box">
-            <div class="stat-label">Einträge heute</div>
-            <div class="stat-value">{{ entries_today }}</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-label">Einträge diese Woche</div>
-            <div class="stat-value">{{ entries_week }}</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-label">Offene Einträge</div>
-            <div class="stat-value">{{ open_entries }}</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-label">Erledigte Einträge</div>
-            <div class="stat-value">{{ done_entries }}</div>
-        </div>
-    </div>
-
-    <hr>
-
-    <!-- Diagramme -->
-    <h3>Statistiken</h3>
-
-    <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-        <div style="flex: 1 1 300px; min-width: 260px;">
-            <h4>Status-Verteilung</h4>
-            <canvas id="statusChart"></canvas>
-        </div>
-
-        <div style="flex: 1 1 300px; min-width: 260px;">
-            <h4>Einträge (letzte 7 Tage)</h4>
-            <canvas id="dateChart"></canvas>
-        </div>
-    </div>
-
-    <hr>
 
     <h3>Einträge der letzten 7 Tage</h3>
 
@@ -135,7 +91,53 @@
 
 
 {# --------------------------------------------------------- #}
-{# TAB 2: Benachrichtigungen (nur für Meister/Admin)        #}
+{# TAB 2: Statistiken (Diagramme + Kacheln)                 #}
+{# --------------------------------------------------------- #}
+
+<div id="tab-stats" style="display: none; margin-top: 10px;">
+
+    <h3>Statistik – Übersicht</h3>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-label">Einträge heute</div>
+            <div class="stat-value">{{ entries_today }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Einträge diese Woche</div>
+            <div class="stat-value">{{ entries_week }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Offene Einträge</div>
+            <div class="stat-value">{{ open_entries }}</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Erledigte Einträge</div>
+            <div class="stat-value">{{ done_entries }}</div>
+        </div>
+    </div>
+
+    <hr>
+
+    <h3>Diagramme</h3>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+        <div style="flex: 1 1 300px; min-width: 260px;">
+            <h4>Status-Verteilung</h4>
+            <canvas id="statusChart"></canvas>
+        </div>
+
+        <div style="flex: 1 1 300px; min-width: 260px;">
+            <h4>Einträge (letzte 7 Tage)</h4>
+            <canvas id="dateChart"></canvas>
+        </div>
+    </div>
+
+</div>
+
+
+{# --------------------------------------------------------- #}
+{# TAB 3: Benachrichtigungen (nur Meister/Admin)            #}
 {# --------------------------------------------------------- #}
 
 {% if is_admin_or_meister %}
@@ -176,91 +178,105 @@
 
 
 {# --------------------------------------------------------- #}
-{# Chart.js (lokale Datei, kein Internet)                   #}
+{# Chart.js (lokale Datei)                                  #}
 {# --------------------------------------------------------- #}
 
 <script src="{% static 'js/chart.umd.js' %}"></script>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // -------------------------------------------------
-        // Tabs: Umschalten zwischen Übersicht / Benachrichtigungen
-        // -------------------------------------------------
-        const tabOverviewBtn = document.getElementById("tab-overview-btn");
-        const tabNotificationsBtn = document.getElementById("tab-notifications-btn");
-        const tabOverview = document.getElementById("tab-overview");
-        const tabNotifications = document.getElementById("tab-notifications");
+document.addEventListener("DOMContentLoaded", function () {
 
-        if (tabOverviewBtn && tabOverview) {
-            tabOverviewBtn.addEventListener("click", function () {
-                tabOverview.style.display = "block";
-                if (tabNotifications) {
-                    tabNotifications.style.display = "none";
-                }
-            });
-        }
+    // -------------------------------------------------
+    // Tabs Initialisierung
+    // -------------------------------------------------
+    const tabOverview = document.getElementById("tab-overview");
+    const tabStats = document.getElementById("tab-stats");
+    const tabNotifications = document.getElementById("tab-notifications");
 
-        if (tabNotificationsBtn && tabNotifications && tabOverview) {
-            tabNotificationsBtn.addEventListener("click", function () {
-                tabOverview.style.display = "none";
-                tabNotifications.style.display = "block";
-            });
-        }
+    const btnOverview = document.getElementById("tab-overview-btn");
+    const btnStats = document.getElementById("tab-stats-btn");
+    const btnNotifications = document.getElementById("tab-notifications-btn");
 
-        // -------------------------------------------------
-        // Status-Diagramm (Doughnut)
-        // -------------------------------------------------
-        const statusLabels = {{ status_labels_json|safe }};
-        const statusData = {{ status_data_json|safe }};
+    function hideAllTabs() {
+        if (tabOverview) tabOverview.style.display = "none";
+        if (tabStats) tabStats.style.display = "none";
+        if (tabNotifications) tabNotifications.style.display = "none";
+    }
 
-        const statusCanvas = document.getElementById('statusChart');
-        if (statusCanvas && typeof Chart !== "undefined") {
-            const statusCtx = statusCanvas.getContext('2d');
-            new Chart(statusCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: statusLabels,
-                    datasets: [{
-                        data: statusData,
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    }
-                }
-            });
-        }
+    if (btnOverview) {
+        btnOverview.addEventListener("click", () => {
+            hideAllTabs();
+            tabOverview.style.display = "block";
+        });
+    }
 
-        // -------------------------------------------------
-        // Einträge pro Tag (letzte 7 Tage) – Balkendiagramm
-        // -------------------------------------------------
-        const dateLabels = {{ date_labels_json|safe }};
-        const dateData = {{ date_data_json|safe }};
+    if (btnStats) {
+        btnStats.addEventListener("click", () => {
+            hideAllTabs();
+            tabStats.style.display = "block";
+        });
+    }
 
-        const dateCanvas = document.getElementById('dateChart');
-        if (dateCanvas && typeof Chart !== "undefined") {
-            const dateCtx = dateCanvas.getContext('2d');
-            new Chart(dateCtx, {
-                type: 'bar',
-                data: {
-                    labels: dateLabels,
-                    datasets: [{
-                        label: 'Einträge',
-                        data: dateData,
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: { beginAtZero: true }
-                    }
-                }
-            });
-        }
-    });
+    if (btnNotifications && tabNotifications) {
+        btnNotifications.addEventListener("click", () => {
+            hideAllTabs();
+            tabNotifications.style.display = "block";
+        });
+    }
+
+
+    // -------------------------------------------------
+    // Status-Diagramm
+    // -------------------------------------------------
+    const statusLabels = {{ status_labels_json|safe }};
+    const statusData = {{ status_data_json|safe }};
+
+    const statusCanvas = document.getElementById('statusChart');
+    if (statusCanvas && typeof Chart !== "undefined") {
+        const ctx = statusCanvas.getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusData,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    // -------------------------------------------------
+    // 7-Tage-Diagramm
+    // -------------------------------------------------
+    const dateLabels = {{ date_labels_json|safe }};
+    const dateData = {{ date_data_json|safe }};
+
+    const dateCanvas = document.getElementById('dateChart');
+    if (dateCanvas && typeof Chart !== "undefined") {
+        const ctx = dateCanvas.getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dateLabels,
+                datasets: [{
+                    label: 'Einträge',
+                    data: dateData,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+});
 </script>
+
 {% endblock %}
