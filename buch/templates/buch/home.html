@@ -30,7 +30,7 @@
 </div>
 
 {# --------------------------------------------------------- #}
-{# TAB 1: Übersicht (dein bisheriger Inhalt)                #}
+{# TAB 1: Übersicht (Dashboard)                             #}
 {# --------------------------------------------------------- #}
 
 <div id="tab-overview" style="display: block;">
@@ -74,7 +74,7 @@
 
     <hr>
 
-    <h3>Letzte Einträge</h3>
+    <h3>Einträge der letzten 7 Tage</h3>
 
     <div class="table-wrapper">
         <table>
@@ -109,6 +109,24 @@
             </tbody>
         </table>
     </div>
+
+    {# Pagination für die Einträge-Liste #}
+    {% if is_paginated %}
+        <div class="pagination"
+             style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn">« Zurück</a>
+            {% endif %}
+
+            <span>
+                Seite {{ page_obj.number }} von {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn">Weiter »</a>
+            {% endif %}
+        </div>
+    {% endif %}
 
     <p style="margin-top: 15px;">
         <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>

@@ -5,6 +5,7 @@ import json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -33,7 +34,7 @@ def home(request):
     - Diagramme:
       * Verteilung nach Status
       * Einträge pro Tag (letzte 7 Tage)
-    - Letzte 20 Einträge
+    - Liste der Einträge der letzten 7 Tage (paginierbar)
     - Für Meister/Admin zusätzlich:
       * Benachrichtigungsliste für Einträge mit offenen Ersatzteil-Buchungen
         (Ersatzteile verwendet, aber nicht als 'in SAP verbucht' markiert).
@@ -77,10 +78,11 @@ def home(request):
         status_labels.append(label)
         status_data.append(row["count"])
 
-    # --- Diagramm 2: Einträge pro Tag (letzte 7 Tage) ---
+    # --- Zeitraum für "letzte 7 Tage" ---
     days_back = 6
     start_date = today - timedelta(days=days_back)
 
+    # --- Diagramm 2: Einträge pro Tag (letzte 7 Tage) ---
     date_qs = (
         ShiftEntry.objects
         .filter(date__gte=start_date, date__lte=today)
@@ -99,11 +101,23 @@ def home(request):
         date_labels.append(d.strftime("%d.%m."))  # z.B. "27.11."
         date_data.append(counts_by_date.get(d, 0))
 
-    # --- Letzte 20 Einträge für die Tabelle ---
-    entries = (
+    # --- Einträge-Liste: nur Einträge der letzten 7 Tage, paginiert ---
+    entries_qs = (
         ShiftEntry.objects.select_related("machine", "user")
-        .order_by("-date", "-created_at")[:20]
+        .filter(date__gte=start_date, date__lte=today)
+        .order_by("-date", "-created_at")
     )
+
+    # Anzahl pro Seite hier einstellbar (z.B. 10, 20, 50)
+    paginator = Paginator(entries_qs, 20)
+    page_number = request.GET.get("page")
+
+    try:
+        entries_page = paginator.page(page_number)
+    except PageNotAnInteger:
+        entries_page = paginator.page(1)
+    except EmptyPage:
+        entries_page = paginator.page(paginator.num_pages)
 
     # --- Rolle: ist der aktuelle Benutzer Meister/Admin? ---
     user = request.user
@@ -142,7 +156,9 @@ def home(request):
         "entries_week": entries_week,
         "open_entries": open_entries,
         "done_entries": done_entries,
-        "entries": entries,
+        "entries": entries_page,          # paginierte Einträge
+        "page_obj": entries_page,         # für Pagination im Template
+        "is_paginated": paginator.num_pages > 1,
         "top_machines": top_machines,
         # Daten für Chart.js
         "status_labels_json": json.dumps(status_labels),
@@ -443,7 +459,7 @@ def debug_media(request):
     """
     Diagnose-Seite:
     - zeigt MEDIA_ROOT
-    - listet alle ShiftEntryImage-Einträge
+    - listet alle ShiftEntryImage-Objekte
     - prüft, ob die Dateien wirklich auf der Platte existieren
     - zeigt, was im Verzeichnis shift_images liegt
     """
