@@ -86,7 +86,7 @@ def home(request):
     # --- Einträge-Liste: nur Einträge der letzten 7 Tage ---
     entries_qs = (
         ShiftEntry.objects.select_related("machine", "user")
-        .filter(date__gte=start_date, date__lte=today)
+        #.filter(date__gte=start_date, date__lte=today)
         .order_by("-date", "-created_at")
     )
 
