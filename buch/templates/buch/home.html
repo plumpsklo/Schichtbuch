@@ -25,28 +25,111 @@
 </div>
 
 {# --------------------------------------------------------- #}
-{# TAB 1: Übersicht – Liste + Pagination + per_page         #}
+{# TAB 1: Übersicht – Filter + Liste + Pagination           #}
 {# --------------------------------------------------------- #}
 
 <div id="tab-overview" style="display: block;">
 
-    <h3>Einträge der letzten 7 Tage</h3>
+    <h3>Einträge (neueste zuerst)</h3>
 
-    {# Auswahl Einträge pro Seite #}
+    {# Filter- und Suchformular (GET) #}
     <form method="get"
-          style="margin-bottom: 10px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-        <label for="per_page_select">Einträge pro Seite:</label>
-        <select id="per_page_select"
-                name="per_page"
-                onchange="this.form.submit()">
-            {% for option in per_page_options %}
-                <option value="{{ option }}"
-                        {% if per_page == option %}selected{% endif %}>
-                    {{ option }}
-                </option>
-            {% endfor %}
-        </select>
-        {# Beim Wechsel von per_page immer auf Seite 1 -> kein hidden page-Feld nötig #}
+          style="margin-bottom: 10px; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end;">
+
+        <div>
+            <label for="search_input">Titel-Suche</label>
+            <input type="text"
+                   id="search_input"
+                   name="search"
+                   value="{{ filter_search }}"
+                   placeholder="Titel enthält …">
+        </div>
+
+        <div>
+            <label for="machine_select">Maschine</label>
+            <select id="machine_select" name="machine">
+                <option value="">Alle</option>
+                {% for m in machines %}
+                    <option value="{{ m.id }}"
+                            {% if filter_machine|default_if_none:'' == m.id|stringformat:"s" %}selected{% endif %}>
+                        {{ m.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="status_select">Status</label>
+            <select id="status_select" name="status">
+                <option value="">Alle</option>
+                {% for code, label in status_choices %}
+                    <option value="{{ code }}"
+                            {% if filter_status == code %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="shift_select">Schicht</label>
+            <select id="shift_select" name="shift">
+                <option value="">Alle</option>
+                {% for code, label in shift_choices %}
+                    <option value="{{ code }}"
+                            {% if filter_shift == code %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="category_select">Kategorie</label>
+            <select id="category_select" name="category">
+                <option value="">Alle</option>
+                {% for code, label in category_choices %}
+                    <option value="{{ code }}"
+                            {% if filter_category == code %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="date_from">Datum von</label>
+            <input type="date"
+                   id="date_from"
+                   name="date_from"
+                   value="{{ filter_date_from }}">
+        </div>
+
+        <div>
+            <label for="date_to">Datum bis</label>
+            <input type="date"
+                   id="date_to"
+                   name="date_to"
+                   value="{{ filter_date_to }}">
+        </div>
+
+        <div>
+            <label for="per_page_select">Einträge pro Seite</label>
+            <select id="per_page_select"
+                    name="per_page"
+                    onchange="this.form.submit()">
+                {% for option in per_page_options %}
+                    <option value="{{ option }}"
+                            {% if per_page == option %}selected{% endif %}>
+                        {{ option }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit" class="btn">Filter anwenden</button>
+        </div>
     </form>
 
     <div class="table-wrapper">
@@ -76,19 +159,29 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="6"><em>Keine Einträge vorhanden.</em></td>
+                    <td colspan="6"><em>Keine Einträge gefunden.</em></td>
                 </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
 
-    {# Pagination für die Einträge-Liste #}
+    {# Pagination: Filter & per_page in Links erhalten #}
     {% if is_paginated %}
         <div class="pagination"
              style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+
             {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}" class="btn">« Zurück</a>
+                <a href="?page={{ page_obj.previous_page_number }}
+                         &per_page={{ per_page }}
+                         {% if filter_search %}&search={{ filter_search|urlencode }}{% endif %}
+                         {% if filter_machine %}&machine={{ filter_machine }}{% endif %}
+                         {% if filter_status %}&status={{ filter_status }}{% endif %}
+                         {% if filter_shift %}&shift={{ filter_shift }}{% endif %}
+                         {% if filter_category %}&category={{ filter_category }}{% endif %}
+                         {% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}
+                         {% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}"
+                   class="btn">« Zurück</a>
             {% endif %}
 
             <span>
@@ -96,7 +189,16 @@
             </span>
 
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}" class="btn">Weiter »</a>
+                <a href="?page={{ page_obj.next_page_number }}
+                         &per_page={{ per_page }}
+                         {% if filter_search %}&search={{ filter_search|urlencode }}{% endif %}
+                         {% if filter_machine %}&machine={{ filter_machine }}{% endif %}
+                         {% if filter_status %}&status={{ filter_status }}{% endif %}
+                         {% if filter_shift %}&shift={{ filter_shift }}{% endif %}
+                         {% if filter_category %}&category={{ filter_category }}{% endif %}
+                         {% if filter_date_from %}&date_from={{ filter_date_from }}{% endif %}
+                         {% if filter_date_to %}&date_to={{ filter_date_to }}{% endif %}"
+                   class="btn">Weiter »</a>
             {% endif %}
         </div>
     {% endif %}

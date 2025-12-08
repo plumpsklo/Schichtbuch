@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import (
+    Machine,
     ShiftEntry,
     ShiftEntryImage,
     ShiftEntryVideo,
@@ -30,8 +31,11 @@ def home(request):
     """
     Übersicht / Dashboard:
     - Statistik-Kacheln (heute / Woche / offen / erledigt)
-    - Diagramme (eigener Tab)
-    - Liste der Einträge der letzten 7 Tage (paginierbar, per_page wählbar)
+    - Diagramme (eigener Tab, 7 Tage)
+    - Eintragsliste mit:
+      * Filtern (Maschine, Status, Schicht, Kategorie, Datum von/bis)
+      * Suchfeld (Titel)
+      * Einträge pro Seite wählbar
     - Benachrichtigungen für Meister/Admin (eigener Tab)
     """
     today = timezone.localdate()
@@ -62,11 +66,10 @@ def home(request):
         status_labels.append(label)
         status_data.append(row["count"])
 
-    # --- Zeitraum für "letzte 7 Tage" ---
+    # --- Zeitraum für "letzte 7 Tage" (nur für Diagramm 2) ---
     days_back = 6
     start_date = today - timedelta(days=days_back)
 
-    # --- Diagramm 2: Einträge pro Tag (letzte 7 Tage) ---
     date_qs = (
         ShiftEntry.objects
         .filter(date__gte=start_date, date__lte=today)
@@ -83,14 +86,50 @@ def home(request):
         date_labels.append(d.strftime("%d.%m."))
         date_data.append(counts_by_date.get(d, 0))
 
-    # --- Einträge-Liste: nur Einträge der letzten 7 Tage ---
+    # ---------------------------------------------------------
+    # Eintragsliste: ALLE Einträge, mit Filter + Suche
+    # ---------------------------------------------------------
     entries_qs = (
-        ShiftEntry.objects.select_related("machine", "user")
-        #.filter(date__gte=start_date, date__lte=today)
+        ShiftEntry.objects
+        .select_related("machine", "user")
         .order_by("-date", "-created_at")
     )
 
-    # --- Einträge pro Seite (per_page) aus Query übernehmen ---
+    # Filter-/Such-Parameter aus GET
+    filter_machine = request.GET.get("machine") or ""
+    filter_status = request.GET.get("status") or ""
+    filter_shift = request.GET.get("shift") or ""
+    filter_category = request.GET.get("category") or ""
+    filter_date_from = request.GET.get("date_from") or ""
+    filter_date_to = request.GET.get("date_to") or ""
+    filter_search = (request.GET.get("search") or "").strip()
+
+    if filter_machine:
+        entries_qs = entries_qs.filter(machine_id=filter_machine)
+
+    if filter_status:
+        entries_qs = entries_qs.filter(status=filter_status)
+
+    if filter_shift:
+        entries_qs = entries_qs.filter(shift=filter_shift)
+
+    if filter_category:
+        entries_qs = entries_qs.filter(category=filter_category)
+
+    if filter_date_from:
+        # ISO-Format (YYYY-MM-DD) aus input[type=date] -> direkt nutzbar
+        entries_qs = entries_qs.filter(date__gte=filter_date_from)
+
+    if filter_date_to:
+        entries_qs = entries_qs.filter(date__lte=filter_date_to)
+
+    if filter_search:
+        # explizit nur im Titel suchen (wie gewünscht)
+        entries_qs = entries_qs.filter(title__icontains=filter_search)
+
+    # ---------------------------------------------------------
+    # Einträge pro Seite
+    # ---------------------------------------------------------
     default_per_page = 20
     try:
         per_page = int(request.GET.get("per_page", default_per_page))
@@ -102,7 +141,6 @@ def home(request):
     if per_page > 200:
         per_page = 200
 
-    # Optionen für das Dropdown
     per_page_options = [10, 20, 50, 100]
 
     paginator = Paginator(entries_qs, per_page)
@@ -126,7 +164,7 @@ def home(request):
         )
     )
 
-    # --- Benachrichtigungen: offene Ersatzteil-Buchungen (nur für Meister/Admin) ---
+    # --- Benachrichtigungen: offene Ersatzteil-Buchungen ---
     notifications = []
     notifications_count = 0
     if is_admin_or_meister:
@@ -143,22 +181,46 @@ def home(request):
         notifications = list(notifications_qs)
         notifications_count = len(notifications)
 
+    # Dropdown-Daten
+    machines = Machine.objects.filter(is_active=True).order_by("name")
+    shift_choices = ShiftEntry.SHIFT_CHOICES
+    status_choices = ShiftEntry.STATUS_CHOICES
+    category_choices = ShiftEntry.CATEGORY_CHOICES
+
     context = {
         "entries_today": entries_today,
         "entries_week": entries_week,
         "open_entries": open_entries,
         "done_entries": done_entries,
+
         # paginierte Einträge
         "entries": entries_page,
         "page_obj": entries_page,
         "is_paginated": paginator.num_pages > 1,
         "per_page": per_page,
-        "per_page_options": per_page_options,  # <--- NEU
+        "per_page_options": per_page_options,
+
+        # Filter-/Suchwerte (für Formular + Pagination)
+        "filter_machine": filter_machine,
+        "filter_status": filter_status,
+        "filter_shift": filter_shift,
+        "filter_category": filter_category,
+        "filter_date_from": filter_date_from,
+        "filter_date_to": filter_date_to,
+        "filter_search": filter_search,
+
+        # Daten für Dropdowns
+        "machines": machines,
+        "shift_choices": shift_choices,
+        "status_choices": status_choices,
+        "category_choices": category_choices,
+
         # Diagramm-Daten
         "status_labels_json": json.dumps(status_labels),
         "status_data_json": json.dumps(status_data),
         "date_labels_json": json.dumps(date_labels),
         "date_data_json": json.dumps(date_data),
+
         # Benachrichtigungen / Rolleninfo
         "is_admin_or_meister": is_admin_or_meister,
         "notifications": notifications,
