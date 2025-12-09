@@ -4,74 +4,67 @@
 <head>
     <meta charset="utf-8">
     <title>Schichtbuch – {% block title %}{% endblock %}</title>
-    <!-- wichtig für iPhone & Co -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
-        /* Farb-Variablen für Hell/Dunkel */
+        /* ----------------------------------------------------
+           Farbvariablen (Hell/Dunkel)
+        ---------------------------------------------------- */
         :root {
             --bg-color: #f5f5f5;
-            --bg-color-alt: #ffffff;
-            --text-color: #111111;
-            --muted-text: #666666;
-            --border-color: #cccccc;
-            --header-bg: #eeeeee;
-            --card-bg: #f9f9f9;
+            --bg-alt: #ffffff;
+            --text: #111;
+            --text-muted: #666;
+            --border: #ccc;
+            --header-bg: #eee;
+            --card-bg: #fafafa;
 
-            --primary-color: #007bff;
-            --primary-text-on: #ffffff;
+            --primary: #0078ff;
+            --primary-text: #fff;
 
-            --danger-color: #dc3545;
-            --danger-text-on: #ffffff;
+            --danger: #d62828;
+            --danger-text: #fff;
 
-            --button-bg: #ffffff;
-            --button-border: #007bff;
-            --button-text: #007bff;
+            --input-height: 38px;
+            --input-font: 15px;
+            --input-pad: 6px 8px;
         }
 
         [data-theme="dark"] {
             --bg-color: #121212;
-            --bg-color-alt: #181818;
-            --text-color: #f5f5f5;
-            --muted-text: #aaaaaa;
-            --border-color: #333333;
-            --header-bg: #202020;
-            --card-bg: #1f1f1f;
+            --bg-alt: #181818;
+            --text: #eaeaea;
+            --text-muted: #9b9b9b;
+            --border: #333;
+            --header-bg: #1e1e1e;
+            --card-bg: #1c1c1c;
 
-            --primary-color: #3d8bff;
-            --primary-text-on: #ffffff;
-
-            --danger-color: #ff5c5c;
-            --danger-text-on: #ffffff;
-
-            --button-bg: #1f1f1f;
-            --button-border: #3d8bff;
-            --button-text: #e0e0e0;
+            --primary: #3e8bff;
+            --danger: #ff4d4d;
         }
 
+        /* ----------------------------------------------------
+           Basic Layout
+        ---------------------------------------------------- */
         body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 16px;
-            font-size: 16px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            margin: 14px;
+            font-family: system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            background: var(--bg-color);
         }
 
         .container {
             max-width: 1100px;
             margin: 0 auto;
-            background-color: var(--bg-color-alt);
-            padding: 12px 16px 40px 16px;
+            background: var(--bg-alt);
+            padding: 16px 18px 40px 18px;
             border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-
-        header {
-            margin-bottom: 20px;
+            border: 1px solid var(--border);
         }
 
         header h1 {
-            margin: 0 0 8px 0;
+            margin-bottom: 10px;
+            font-size: 26px;
         }
 
         nav {
@@ -79,191 +72,152 @@
             flex-wrap: wrap;
             gap: 8px;
             align-items: center;
+            margin-bottom: 18px;
         }
 
-        nav a {
-            text-decoration: none;
-        }
+        .nav-spacer { flex: 1 1 auto; }
 
-        .nav-spacer {
-            flex: 1 1 auto;
-        }
+        /* ----------------------------------------------------
+           Tabellen
+        ---------------------------------------------------- */
+        .table-wrapper { overflow-x: auto; }
 
         table {
-            border-collapse: collapse;
             width: 100%;
+            border-collapse: collapse;
             margin-top: 10px;
         }
 
         th, td {
-            border: 1px solid var(--border-color);
+            border: 1px solid var(--border);
             padding: 6px 8px;
             font-size: 14px;
         }
 
-        th {
-            background: var(--header-bg);
-        }
+        th { background: var(--header-bg); }
 
-        .table-wrapper {
-            width: 100%;
-            overflow-x: auto; /* mobil: horizontales Scrollen erlaubt */
-        }
-
+        /* ----------------------------------------------------
+           Statistik-Kacheln
+        ---------------------------------------------------- */
         .stats {
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
-            margin: 10px 0;
         }
 
         .stat-box {
             padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background: var(--card-bg);
             flex: 1 1 140px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
         }
 
-        .stat-label {
-            font-size: 12px;
-            color: var(--muted-text);
-        }
+        .stat-label { font-size: 12px; color: var(--text-muted); }
+        .stat-value { font-size: 20px; font-weight: bold; }
 
-        .stat-value {
-            font-size: 20px;
-            font-weight: bold;
-        }
-
+        /* ----------------------------------------------------
+           Buttons
+        ---------------------------------------------------- */
         .btn {
-            display: inline-block;
-            padding: 6px 10px;
+            padding: 6px 12px;
             border-radius: 4px;
-            border: 1px solid var(--button-border);
-            color: var(--button-text);
-            background: var(--button-bg);
-            font-size: 14px;
+            border: 1px solid var(--primary);
+            background: var(--bg-alt);
+            color: var(--primary);
             cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--primary);
+            color: var(--primary-text);
         }
 
         .btn-primary {
-            background: var(--primary-color);
-            color: var(--primary-text-on);
-            border-color: var(--primary-color);
+            background: var(--primary);
+            color: var(--primary-text);
+            border-color: var(--primary);
         }
 
         .btn-danger {
-            border-color: var(--danger-color);
-            color: var(--danger-color);
+            border-color: var(--danger);
+            color: var(--danger);
             background: transparent;
         }
 
-        [data-theme="dark"] .btn-danger {
-            color: var(--danger-text-on);
-            border-color: var(--danger-color);
-        }
-
         .btn-danger:hover {
-            background: var(--danger-color);
-            color: var(--danger-text-on);
+            background: var(--danger);
+            color: var(--danger-text);
         }
 
-        .btn + .btn {
-            margin-left: 6px;
-        }
-
-        .field {
-            margin-bottom: 10px;
-        }
-
+        /* ----------------------------------------------------
+           Formulare / Inputs
+        ---------------------------------------------------- */
         label {
-            font-weight: 600;
-            font-size: 14px;
             display: block;
             margin-bottom: 2px;
+            font-size: 14px;
+            font-weight: 600;
         }
 
         input,
         select,
         textarea {
             width: 100%;
-            padding: 8px;
-            font-size: 16px; /* angenehm für Touch UND PC */
-            box-sizing: border-box;
-            background-color: var(--bg-color-alt);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
+            height: var(--input-height);
+            padding: var(--input-pad);
+            font-size: var(--input-font);
+            border: 1px solid var(--border);
+            background: var(--bg-alt);
+            color: var(--text);
             border-radius: 4px;
+            box-sizing: border-box;
         }
+
+        textarea { height: auto; min-height: 90px; }
+
+        /* 🔥 Fix für iPhone & Android: Datum/Uhrzeit zu groß */
         input[type="date"],
         input[type="time"] {
-        max-width: 220px;
+            appearance: none;
+            -webkit-appearance: none;
+            height: var(--input-height) !important;
+            padding: var(--input-pad) !important;
+            font-size: var(--input-font) !important;
         }
 
-        input:focus,
-        select:focus,
-        textarea:focus {
-            outline: 2px solid var(--primary-color);
-            outline-offset: 1px;
-        }
+        .field { margin-bottom: 10px; }
 
-        .errors {
-            color: #c00;
-            margin-bottom: 10px;
-        }
+        .errors { color: #d00; margin-bottom: 6px; }
 
-        .status-OFFEN {
-            background: #fff3cd;
-            color: #856404;
-            font-weight: 600;
-        }
+        /* ----------------------------------------------------
+           Status-Farben
+        ---------------------------------------------------- */
+        .status-OFFEN { background: #fff3cd; color: #775900; font-weight: 600; }
+        .status-IN_ARB { background: #cfe2ff; color: #003a75; font-weight: 600; }
+        .status-ERLED { background: #d4edda; color: #155724; font-weight: 600; }
 
-        .status-IN_ARB {
-            background: #cce5ff;
-            color: #004085;
-            font-weight: 600;
-        }
-
-        .status-ERLED {
-            background: #d4edda;
-            color: #155724;
-            font-weight: 600;
-        }
-
-        /* 🔽 kleinere Bildschirme (iPhones etc.) */
+        /* ----------------------------------------------------
+           Mobil Anpassungen
+        ---------------------------------------------------- */
         @media (max-width: 600px) {
-            body {
-                margin: 10px;
-            }
+            body { margin: 8px; }
+            header h1 { font-size: 22px; }
+            .btn { padding: 6px 10px; font-size: 14px; }
 
-            .container {
-                padding: 10px 10px 40px 10px;
-            }
-
-            header h1 {
-                font-size: 20px;
-                margin-bottom: 8px;
-            }
-
-            nav {
-                gap: 6px;
-            }
-
-            .btn {
-                font-size: 14px;
-                padding: 6px 8px;
-            }
-
-            th, td {
-                white-space: nowrap;
-            }
+            th, td { white-space: nowrap; }
         }
     </style>
 </head>
+
 <body>
 <div class="container">
     <header>
         <h1>Schichtbuch</h1>
+
         <nav>
             {% if user.is_authenticated %}
                 <a href="{% url 'home' %}" class="btn">Übersicht</a>
@@ -277,68 +231,39 @@
             {% endif %}
 
             <a href="/admin/" class="btn">Admin</a>
-
             <span class="nav-spacer"></span>
 
-            <!-- Theme-Toggle -->
-            <button type="button" class="btn" id="themeToggle">🌙 Dunkel</button>
+            <button type="button" id="themeToggle" class="btn">🌙 Dunkel</button>
         </nav>
     </header>
 
     {% block content %}{% endblock %}
 </div>
 
-<div style="
-    position: fixed;
-    bottom: 5px;
-    right: 10px;
-    font-size: 11px;
-    color: #aaa;
-    user-select: none;
-">
+<!-- App Version -->
+<div style="position: fixed; bottom: 5px; right: 10px; font-size: 11px; color: #aaa;">
     Version {{ APP_VERSION }} – {{ APP_STAGE|capfirst }}
 </div>
 
+<!-- Theme Script -->
 <script>
-    (function() {
-        const STORAGE_KEY = "schichtbuch-theme";
+    (function(){
+        const KEY = "schichtbuch-theme";
         const root = document.documentElement;
         const btn = document.getElementById("themeToggle");
 
-        function applyTheme(theme) {
+        function apply(theme){
             root.setAttribute("data-theme", theme);
-            if (!btn) return;
-            if (theme === "dark") {
-                btn.textContent = "☀️ Hell";
-            } else {
-                btn.textContent = "🌙 Dunkel";
-            }
+            btn.textContent = theme === "dark" ? "☀️ Hell" : "🌙 Dunkel";
         }
 
-        function getPreferredTheme() {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored === "light" || stored === "dark") {
-                return stored;
-            }
-            if (window.matchMedia &&
-                window.matchMedia("(prefers-color-scheme: dark)").matches) {
-                return "dark";
-            }
-            return "light";
-        }
+        const saved = localStorage.getItem(KEY);
+        apply(saved || "light");
 
-        document.addEventListener("DOMContentLoaded", function() {
-            const theme = getPreferredTheme();
-            applyTheme(theme);
-
-            if (btn) {
-                btn.addEventListener("click", function() {
-                    const current = root.getAttribute("data-theme") || "light";
-                    const next = current === "light" ? "dark" : "light";
-                    localStorage.setItem(STORAGE_KEY, next);
-                    applyTheme(next);
-                });
-            }
+        btn.addEventListener("click", () => {
+            const next = (root.getAttribute("data-theme") === "light") ? "dark" : "light";
+            localStorage.setItem(KEY, next);
+            apply(next);
         });
     })();
 </script>
