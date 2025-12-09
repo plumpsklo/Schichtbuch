@@ -153,6 +153,18 @@ def home(request):
     except EmptyPage:
         entries_page = paginator.page(paginator.num_pages)
 
+    # Sind aktuell Filter aktiv?
+    filters_active = bool(
+        filter_machine
+        or filter_status
+        or filter_shift
+        or filter_category
+        or filter_date_from
+        or filter_date_to
+        or filter_search
+        or per_page != default_per_page
+    )
+
     # --- Rolle: ist der aktuelle Benutzer Meister/Admin? ---
     user = request.user
     is_admin_or_meister = (
@@ -199,6 +211,8 @@ def home(request):
         "is_paginated": paginator.num_pages > 1,
         "per_page": per_page,
         "per_page_options": per_page_options,
+        "filters_active": filters_active,
+        "default_per_page": default_per_page,
 
         # Filter-/Suchwerte (für Formular + Pagination)
         "filter_machine": filter_machine,
