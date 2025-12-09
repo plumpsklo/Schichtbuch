@@ -275,6 +275,49 @@
                 padding: 5px 6px;
                 max-width: 200px;  /* etwas schmaler als auf Desktop */
             }
+
+            /* -------------------------------------------- */
+            /* SPEZIAL: Filter-Felder kompakter machen      */
+            /* -------------------------------------------- */
+
+            /* Grundlegende Einheitlichkeit */
+            .filter-panel input,
+            .filter-panel select {
+                max-width: 180px !important; 
+                padding: 5px 6px !important;
+                font-size: 14px !important;
+            }
+
+            /* Datum/Zeit im Filter separat, noch kompakter */
+            .filter-panel input[type="date"],
+            .filter-panel input[type="time"] {
+                max-width: 150px !important;
+                height: 34px !important;
+                min-height: 34px !important;
+                font-size: 13px !important;
+                padding: 4px 5px !important;
+                appearance: none;
+                -webkit-appearance: none;
+            }
+
+            /* iPhone/iOS Fix – zwingt Safari die Höhe zu akzeptieren */
+            @supports (-webkit-touch-callout: none) {
+                .filter-panel input[type="date"],
+                .filter-panel input[type="time"] {
+                    font-size: 12px !important;
+                    padding: 3px 5px !important;
+                    height: 32px !important;
+                    min-height: 32px !important;
+                }
+            }
+
+            /* Grid des Filters auf Mobil enger machen */
+            @media (max-width: 600px) {
+                .filter-panel {
+                    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
+                    gap: 6px !important;
+                }
+            }
         }
     </style>
 </head>
