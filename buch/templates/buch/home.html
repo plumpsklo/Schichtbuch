@@ -4,6 +4,106 @@
 {% block title %}Übersicht{% endblock %}
 
 {% block content %}
+
+{# --------------------------------------------------------- #}
+{# Lokales CSS nur für die Filter-UI                        #}
+{# --------------------------------------------------------- #}
+<style>
+    .filter-panel {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--card-bg);
+        padding: 10px 12px;
+        margin-bottom: 10px;
+    }
+
+    .filter-panel__header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .filter-panel__title {
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .filter-panel__meta {
+        font-size: 12px;
+        color: var(--muted-text);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: rgba(0, 123, 255, 0.08);
+        border: 1px solid rgba(0, 123, 255, 0.35);
+        font-size: 11px;
+        color: var(--button-text);
+        white-space: nowrap;
+    }
+
+    .filter-chip--count {
+        background: rgba(0, 0, 0, 0.04);
+        border-color: var(--border-color);
+    }
+
+    .filter-panel__icon {
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    .filter-panel__body {
+        margin-top: 10px;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+        align-items: flex-end;
+    }
+
+    .filter-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        margin-top: 4px;
+    }
+
+    /* kompaktere Inputs im Filter-Bereich, besonders für Handy */
+    .filter-panel input,
+    .filter-panel select {
+        font-size: 14px;
+        padding: 6px 8px;
+    }
+
+    .filter-panel label {
+        font-size: 13px;
+        margin-bottom: 2px;
+    }
+
+    @media (max-width: 600px) {
+        .filter-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .filter-actions {
+            grid-column: 1 / -1;
+        }
+    }
+</style>
+
 <h2>Übersicht</h2>
 
 {# --------------------------------------------------------- #}
@@ -25,130 +125,170 @@
 </div>
 
 {# --------------------------------------------------------- #}
-{# TAB 1: Übersicht – Filter (einklappbar) + Liste          #}
+{# TAB 1: Übersicht – moderner Filter + Liste               #}
 {# --------------------------------------------------------- #}
 
 <div id="tab-overview" style="display: block;">
 
     <h3>Einträge (neueste zuerst)</h3>
 
-    {# Button zum Ein-/Ausblenden des Filters #}
-    <div style="margin-bottom: 8px;">
-        <button type="button"
-                class="btn"
-                id="toggle-filters-btn">
-            {% if filters_active %}
-                Filter ausblenden
-            {% else %}
-                Filter einblenden
-            {% endif %}
-        </button>
-    </div>
+    {# Zusammenfassung / Trefferzahl #}
+    <p style="font-size: 13px; color: var(--muted-text); margin-bottom: 6px;">
+        Gefundene Einträge: {{ page_obj.paginator.count }}
+        {% if filters_active %}
+            – <strong>Filter aktiv</strong>
+        {% else %}
+            – keine Filter aktiv
+        {% endif %}
+    </p>
 
-    {# Filter-Container, standardmäßig je nach filters_active ein-/ausgeblendet #}
-    <div id="filter-container"
-         style="margin-bottom: 10px; {% if filters_active %}display: block;{% else %}display: none;{% endif %}">
+    {# Moderner, einklappbarer Filter-Block #}
+    <div class="filter-panel">
 
-        {# Filter- und Suchformular (GET) #}
-        <form method="get"
-              style="display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end;">
-
-            <div>
-                <label for="search_input">Titel-Suche</label>
-                <input type="text"
-                       id="search_input"
-                       name="search"
-                       value="{{ filter_search }}"
-                       placeholder="Titel enthält …">
+        <div class="filter-panel__header" id="filter-header">
+            <div class="filter-panel__title">
+                🔍 Filter &amp; Suche
             </div>
+            <div class="filter-panel__meta">
+                <span class="filter-chip filter-chip--count">
+                    Seite {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} – {{ per_page }} pro Seite
+                </span>
 
-            <div>
-                <label for="machine_select">Maschine</label>
-                <select id="machine_select" name="machine">
-                    <option value="">Alle</option>
-                    {% for m in machines %}
-                        <option value="{{ m.id }}"
-                                {% if filter_machine|default_if_none:'' == m.id|stringformat:"s" %}selected{% endif %}>
-                            {{ m.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+                {% if filters_active %}
+                    <span class="filter-chip">
+                        Aktive Filter
+                    </span>
+                    {% if filter_search %}
+                        <span class="filter-chip">Titel: „{{ filter_search }}“</span>
+                    {% endif %}
+                    {% if filter_machine %}
+                        <span class="filter-chip">Maschine</span>
+                    {% endif %}
+                    {% if filter_status %}
+                        <span class="filter-chip">Status</span>
+                    {% endif %}
+                    {% if filter_shift %}
+                        <span class="filter-chip">Schicht</span>
+                    {% endif %}
+                    {% if filter_category %}
+                        <span class="filter-chip">Kategorie</span>
+                    {% endif %}
+                    {% if filter_date_from or filter_date_to %}
+                        <span class="filter-chip">Zeitraum</span>
+                    {% endif %}
+                {% else %}
+                    <span style="font-size: 12px;">Keine Filter gesetzt</span>
+                {% endif %}
 
-            <div>
-                <label for="status_select">Status</label>
-                <select id="status_select" name="status">
-                    <option value="">Alle</option>
-                    {% for code, label in status_choices %}
-                        <option value="{{ code }}"
-                                {% if filter_status == code %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                    {% endfor %}
-                </select>
+                <span class="filter-panel__icon" id="filter-toggle-icon">
+                    {% if filters_active %}▲{% else %}▼{% endif %}
+                </span>
             </div>
+        </div>
 
-            <div>
-                <label for="shift_select">Schicht</label>
-                <select id="shift_select" name="shift">
-                    <option value="">Alle</option>
-                    {% for code, label in shift_choices %}
-                        <option value="{{ code }}"
-                                {% if filter_shift == code %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+        <div class="filter-panel__body"
+             id="filter-container"
+             style="{% if filters_active %}display: block;{% else %}display: none;{% endif %}">
 
-            <div>
-                <label for="category_select">Kategorie</label>
-                <select id="category_select" name="category">
-                    <option value="">Alle</option>
-                    {% for code, label in category_choices %}
-                        <option value="{{ code }}"
-                                {% if filter_category == code %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+            <form method="get" class="filter-grid">
 
-            <div>
-                <label for="date_from">Datum von</label>
-                <input type="date"
-                       id="date_from"
-                       name="date_from"
-                       value="{{ filter_date_from }}">
-            </div>
+                <div>
+                    <label for="search_input">Titel-Suche</label>
+                    <input type="text"
+                           id="search_input"
+                           name="search"
+                           value="{{ filter_search }}"
+                           placeholder="Titel enthält …">
+                </div>
 
-            <div>
-                <label for="date_to">Datum bis</label>
-                <input type="date"
-                       id="date_to"
-                       name="date_to"
-                       value="{{ filter_date_to }}">
-            </div>
+                <div>
+                    <label for="machine_select">Maschine</label>
+                    <select id="machine_select" name="machine">
+                        <option value="">Alle</option>
+                        {% for m in machines %}
+                            <option value="{{ m.id }}"
+                                    {% if filter_machine|default_if_none:'' == m.id|stringformat:"s" %}selected{% endif %}>
+                                {{ m.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <div>
-                <label for="per_page_select">Einträge pro Seite</label>
-                <select id="per_page_select"
-                        name="per_page"
-                        onchange="this.form.submit()">
-                    {% for option in per_page_options %}
-                        <option value="{{ option }}"
-                                {% if per_page == option %}selected{% endif %}>
-                            {{ option }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
+                <div>
+                    <label for="status_select">Status</label>
+                    <select id="status_select" name="status">
+                        <option value="">Alle</option>
+                        {% for code, label in status_choices %}
+                            <option value="{{ code }}"
+                                    {% if filter_status == code %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
-                <button type="submit" class="btn">Filter anwenden</button>
-                <a href="{% url 'home' %}" class="btn">Zurücksetzen</a>
-            </div>
-        </form>
+                <div>
+                    <label for="shift_select">Schicht</label>
+                    <select id="shift_select" name="shift">
+                        <option value="">Alle</option>
+                        {% for code, label in shift_choices %}
+                            <option value="{{ code }}"
+                                    {% if filter_shift == code %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="category_select">Kategorie</label>
+                    <select id="category_select" name="category">
+                        <option value="">Alle</option>
+                        {% for code, label in category_choices %}
+                            <option value="{{ code }}"
+                                    {% if filter_category == code %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="date_from">Datum von</label>
+                    <input type="date"
+                           id="date_from"
+                           name="date_from"
+                           value="{{ filter_date_from }}">
+                </div>
+
+                <div>
+                    <label for="date_to">Datum bis</label>
+                    <input type="date"
+                           id="date_to"
+                           name="date_to"
+                           value="{{ filter_date_to }}">
+                </div>
+
+                <div>
+                    <label for="per_page_select">Einträge pro Seite</label>
+                    <select id="per_page_select"
+                            name="per_page"
+                            onchange="this.form.submit()">
+                        {% for option in per_page_options %}
+                            <option value="{{ option }}"
+                                    {% if per_page == option %}selected{% endif %}>
+                                {{ option }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">Filter anwenden</button>
+                    <a href="{% url 'home' %}" class="btn">Zurücksetzen</a>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div class="table-wrapper">
@@ -363,20 +503,25 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // -------------------------------------------------
-    // Filter ein-/ausblenden
+    // Filter ein-/ausblenden (Header klickbar)         #
     // -------------------------------------------------
+    const filterHeader = document.getElementById("filter-header");
     const filterContainer = document.getElementById("filter-container");
-    const toggleFiltersBtn = document.getElementById("toggle-filters-btn");
+    const filterToggleIcon = document.getElementById("filter-toggle-icon");
 
-    if (filterContainer && toggleFiltersBtn) {
-        toggleFiltersBtn.addEventListener("click", function () {
+    if (filterHeader && filterContainer) {
+        filterHeader.addEventListener("click", function (e) {
+            // nicht auslösen, wenn innerhalb des Formulars auf Inputs geklickt wird
+            if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT" || e.target.tagName === "BUTTON" || e.target.tagName === "A") {
+                return;
+            }
             const isHidden = filterContainer.style.display === "none" || filterContainer.style.display === "";
             if (isHidden) {
                 filterContainer.style.display = "block";
-                toggleFiltersBtn.textContent = "Filter ausblenden";
+                if (filterToggleIcon) filterToggleIcon.textContent = "▲";
             } else {
                 filterContainer.style.display = "none";
-                toggleFiltersBtn.textContent = "Filter einblenden";
+                if (filterToggleIcon) filterToggleIcon.textContent = "▼";
             }
         });
     }

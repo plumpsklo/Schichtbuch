@@ -4,67 +4,79 @@
 <head>
     <meta charset="utf-8">
     <title>Schichtbuch – {% block title %}{% endblock %}</title>
+    <!-- wichtig für iPhone & Co -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
-        /* ----------------------------------------------------
-           Farbvariablen (Hell/Dunkel)
-        ---------------------------------------------------- */
+        /* Farb-Variablen für Hell/Dunkel */
         :root {
             --bg-color: #f5f5f5;
-            --bg-alt: #ffffff;
-            --text: #111;
-            --text-muted: #666;
-            --border: #ccc;
-            --header-bg: #eee;
-            --card-bg: #fafafa;
+            --bg-color-alt: #ffffff;
+            --text-color: #111111;
+            --muted-text: #666666;
+            --border-color: #cccccc;
+            --header-bg: #eeeeee;
+            --card-bg: #f9f9f9;
 
-            --primary: #0078ff;
-            --primary-text: #fff;
+            --primary-color: #007bff;
+            --primary-text-on: #ffffff;
 
-            --danger: #d62828;
-            --danger-text: #fff;
+            --danger-color: #dc3545;
+            --danger-text-on: #ffffff;
 
-            --input-height: 38px;
-            --input-font: 15px;
-            --input-pad: 6px 8px;
+            --button-bg: #ffffff;
+            --button-border: #007bff;
+            --button-text: #007bff;
+
+            --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.06);
         }
 
         [data-theme="dark"] {
             --bg-color: #121212;
-            --bg-alt: #181818;
-            --text: #eaeaea;
-            --text-muted: #9b9b9b;
-            --border: #333;
-            --header-bg: #1e1e1e;
-            --card-bg: #1c1c1c;
+            --bg-color-alt: #181818;
+            --text-color: #f5f5f5;
+            --muted-text: #aaaaaa;
+            --border-color: #333333;
+            --header-bg: #202020;
+            --card-bg: #1f1f1f;
 
-            --primary: #3e8bff;
-            --danger: #ff4d4d;
+            --primary-color: #3d8bff;
+            --primary-text-on: #ffffff;
+
+            --danger-color: #ff5c5c;
+            --danger-text-on: #ffffff;
+
+            --button-bg: #1f1f1f;
+            --button-border: #3d8bff;
+            --button-text: #e0e0e0;
+
+            --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.5);
         }
 
-        /* ----------------------------------------------------
-           Basic Layout
-        ---------------------------------------------------- */
         body {
-            margin: 14px;
-            font-family: system-ui, -apple-system, sans-serif;
-            color: var(--text);
-            background: var(--bg-color);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 16px;
+            font-size: 16px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
 
         .container {
             max-width: 1100px;
             margin: 0 auto;
-            background: var(--bg-alt);
-            padding: 16px 18px 40px 18px;
+            background-color: var(--bg-color-alt);
+            padding: 12px 16px 40px 16px;
             border-radius: 8px;
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-soft);
+        }
+
+        header {
+            margin-bottom: 20px;
         }
 
         header h1 {
-            margin-bottom: 10px;
-            font-size: 26px;
+            margin: 0 0 8px 0;
         }
 
         nav {
@@ -72,152 +84,280 @@
             flex-wrap: wrap;
             gap: 8px;
             align-items: center;
-            margin-bottom: 18px;
         }
 
-        .nav-spacer { flex: 1 1 auto; }
+        nav a {
+            text-decoration: none;
+        }
 
-        /* ----------------------------------------------------
-           Tabellen
-        ---------------------------------------------------- */
-        .table-wrapper { overflow-x: auto; }
+        .nav-spacer {
+            flex: 1 1 auto;
+        }
 
         table {
-            width: 100%;
             border-collapse: collapse;
+            width: 100%;
             margin-top: 10px;
         }
 
         th, td {
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-color);
             padding: 6px 8px;
             font-size: 14px;
         }
 
-        th { background: var(--header-bg); }
+        th {
+            background: var(--header-bg);
+        }
 
-        /* ----------------------------------------------------
-           Statistik-Kacheln
-        ---------------------------------------------------- */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto; /* mobil: horizontales Scrollen erlaubt */
+        }
+
         .stats {
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
+            margin: 10px 0;
         }
 
         .stat-box {
             padding: 10px;
-            flex: 1 1 140px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
             background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 5px;
+            flex: 1 1 140px;
+            box-shadow: var(--shadow-soft);
         }
 
-        .stat-label { font-size: 12px; color: var(--text-muted); }
-        .stat-value { font-size: 20px; font-weight: bold; }
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted-text);
+        }
 
-        /* ----------------------------------------------------
-           Buttons
-        ---------------------------------------------------- */
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
         .btn {
-            padding: 6px 12px;
-            border-radius: 4px;
-            border: 1px solid var(--primary);
-            background: var(--bg-alt);
-            color: var(--primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--button-border);
+            color: var(--button-text);
+            background: var(--button-bg);
+            font-size: 14px;
             cursor: pointer;
             text-decoration: none;
-            font-size: 14px;
-            transition: 0.2s;
+            white-space: nowrap;
+            transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
         }
 
         .btn:hover {
-            background: var(--primary);
-            color: var(--primary-text);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            background: rgba(0,123,255,0.04);
         }
 
         .btn-primary {
-            background: var(--primary);
-            color: var(--primary-text);
-            border-color: var(--primary);
+            background: var(--primary-color);
+            color: var(--primary-text-on);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
         }
 
         .btn-danger {
-            border-color: var(--danger);
-            color: var(--danger);
+            border-color: var(--danger-color);
+            color: var(--danger-color);
             background: transparent;
         }
 
-        .btn-danger:hover {
-            background: var(--danger);
-            color: var(--danger-text);
+        [data-theme="dark"] .btn-danger {
+            color: var(--danger-text-on);
+            border-color: var(--danger-color);
         }
 
-        /* ----------------------------------------------------
-           Formulare / Inputs
-        ---------------------------------------------------- */
+        .btn-danger:hover {
+            background: var(--danger-color);
+            color: var(--danger-text-on);
+        }
+
+        .btn + .btn {
+            margin-left: 6px;
+        }
+
+        .field {
+            margin-bottom: 10px;
+        }
+
         label {
-            display: block;
-            margin-bottom: 2px;
-            font-size: 14px;
             font-weight: 600;
+            font-size: 13px;
+            display: block;
+            margin-bottom: 3px;
         }
 
         input,
         select,
         textarea {
             width: 100%;
-            height: var(--input-height);
-            padding: var(--input-pad);
-            font-size: var(--input-font);
-            border: 1px solid var(--border);
-            background: var(--bg-alt);
-            color: var(--text);
-            border-radius: 4px;
+            padding: 8px;
+            font-size: 16px; /* angenehm für Touch UND PC */
             box-sizing: border-box;
+            background-color: var(--bg-color-alt);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
         }
 
-        textarea { height: auto; min-height: 90px; }
-
-        /* 🔥 Fix für iPhone & Android: Datum/Uhrzeit zu groß */
-        input[type="date"],
-        input[type="time"] {
-            appearance: none;
-            -webkit-appearance: none;
-            height: var(--input-height) !important;
-            padding: var(--input-pad) !important;
-            font-size: var(--input-font) !important;
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 1px;
         }
 
-        .field { margin-bottom: 10px; }
+        /* Datumsfelder ein bisschen kompakter im Filter-Bereich */
+        .filter-panel input[type="date"] {
+            /* iOS mag mind. 16px, daher hier nur leicht anpassen */
+            padding: 6px 8px;
+            line-height: 1.2;
+        }
 
-        .errors { color: #d00; margin-bottom: 6px; }
+        .errors {
+            color: #c00;
+            margin-bottom: 10px;
+        }
 
-        /* ----------------------------------------------------
-           Status-Farben
-        ---------------------------------------------------- */
-        .status-OFFEN { background: #fff3cd; color: #775900; font-weight: 600; }
-        .status-IN_ARB { background: #cfe2ff; color: #003a75; font-weight: 600; }
-        .status-ERLED { background: #d4edda; color: #155724; font-weight: 600; }
+        .status-OFFEN {
+            background: #fff3cd;
+            color: #856404;
+            font-weight: 600;
+        }
 
-        /* ----------------------------------------------------
-           Mobil Anpassungen
-        ---------------------------------------------------- */
+        .status-IN_ARB {
+            background: #cce5ff;
+            color: #004085;
+            font-weight: 600;
+        }
+
+        .status-ERLED {
+            background: #d4edda;
+            color: #155724;
+            font-weight: 600;
+        }
+
+        /* ------------- moderner Filter-Block ------------- */
+
+        .filter-toggle-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .filter-toggle-row h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .filter-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .filter-chip {
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            font-size: 11px;
+            color: var(--muted-text);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .filter-chip strong {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        .filter-panel {
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            padding: 10px 10px 12px 10px;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .filter-grid {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            align-items: end;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        /* 🔽 kleinere Bildschirme (iPhones etc.) */
         @media (max-width: 600px) {
-            body { margin: 8px; }
-            header h1 { font-size: 22px; }
-            .btn { padding: 6px 10px; font-size: 14px; }
+            body {
+                margin: 10px;
+            }
 
-            th, td { white-space: nowrap; }
+            .container {
+                padding: 10px 10px 40px 10px;
+            }
+
+            header h1 {
+                font-size: 20px;
+                margin-bottom: 8px;
+            }
+
+            nav {
+                gap: 6px;
+            }
+
+            .btn {
+                font-size: 14px;
+                padding: 6px 10px;
+            }
+
+            th, td {
+                white-space: nowrap;
+            }
+
+            .filter-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+
+            .filter-panel input,
+            .filter-panel select {
+                padding: 6px 8px;
+            }
         }
     </style>
 </head>
-
 <body>
 <div class="container">
     <header>
         <h1>Schichtbuch</h1>
-
         <nav>
             {% if user.is_authenticated %}
                 <a href="{% url 'home' %}" class="btn">Übersicht</a>
@@ -231,39 +371,68 @@
             {% endif %}
 
             <a href="/admin/" class="btn">Admin</a>
+
             <span class="nav-spacer"></span>
 
-            <button type="button" id="themeToggle" class="btn">🌙 Dunkel</button>
+            <!-- Theme-Toggle -->
+            <button type="button" class="btn" id="themeToggle">🌙 Dunkel</button>
         </nav>
     </header>
 
     {% block content %}{% endblock %}
 </div>
 
-<!-- App Version -->
-<div style="position: fixed; bottom: 5px; right: 10px; font-size: 11px; color: #aaa;">
+<div style="
+    position: fixed;
+    bottom: 5px;
+    right: 10px;
+    font-size: 11px;
+    color: #aaa;
+    user-select: none;
+">
     Version {{ APP_VERSION }} – {{ APP_STAGE|capfirst }}
 </div>
 
-<!-- Theme Script -->
 <script>
-    (function(){
-        const KEY = "schichtbuch-theme";
+    (function() {
+        const STORAGE_KEY = "schichtbuch-theme";
         const root = document.documentElement;
         const btn = document.getElementById("themeToggle");
 
-        function apply(theme){
+        function applyTheme(theme) {
             root.setAttribute("data-theme", theme);
-            btn.textContent = theme === "dark" ? "☀️ Hell" : "🌙 Dunkel";
+            if (!btn) return;
+            if (theme === "dark") {
+                btn.textContent = "☀️ Hell";
+            } else {
+                btn.textContent = "🌙 Dunkel";
+            }
         }
 
-        const saved = localStorage.getItem(KEY);
-        apply(saved || "light");
+        function getPreferredTheme() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored === "light" || stored === "dark") {
+                return stored;
+            }
+            if (window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                return "dark";
+            }
+            return "light";
+        }
 
-        btn.addEventListener("click", () => {
-            const next = (root.getAttribute("data-theme") === "light") ? "dark" : "light";
-            localStorage.setItem(KEY, next);
-            apply(next);
+        document.addEventListener("DOMContentLoaded", function() {
+            const theme = getPreferredTheme();
+            applyTheme(theme);
+
+            if (btn) {
+                btn.addEventListener("click", function() {
+                    const current = root.getAttribute("data-theme") || "light";
+                    const next = current === "light" ? "dark" : "light";
+                    localStorage.setItem(STORAGE_KEY, next);
+                    applyTheme(next);
+                });
+            }
         });
     })();
 </script>
