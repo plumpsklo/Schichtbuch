@@ -196,25 +196,10 @@
             border-radius: 4px;
         }
 
-        /* Spezielles Tuning für Datumsfelder, damit sie nicht so "wuchtig" wirken,
-           vor allem auf iOS */
-        input[type="date"] {
-            font-size: 14px;
-            padding: 6px 8px;
-            line-height: 1.2;
-        }
-
-        /* Safari/iOS optisch etwas neutralisieren, damit es zu den anderen Feldern passt */
-        input[type="date"]::-webkit-datetime-edit,
-        input[type="date"]::-webkit-datetime-edit-fields-wrapper,
-        input[type="date"]::-webkit-datetime-edit-text,
-        input[type="date"]::-webkit-datetime-edit-year-field,
-        input[type="date"]::-webkit-datetime-edit-month-field,
-        input[type="date"]::-webkit-datetime-edit-day-field,
-        input[type="date"]::-webkit-inner-spin-button,
-        input[type="date"]::-webkit-calendar-picker-indicator {
-            padding: 0;
-            margin: 0;
+        /* speziell: Datum/Zeit etwas kompakter + nicht „endlos lang“ */
+        input[type="date"],
+        input[type="time"] {
+            max-width: 230px;       /* verhindert zu lange Felder in Grids/Formularen */
         }
 
         input:focus,
@@ -275,19 +260,20 @@
                 white-space: nowrap;
             }
 
-            /* Inputs auf Handy generell minimal kompakter */
+            /* Inputs auf Handy insgesamt etwas kompakter */
             input,
             select,
             textarea {
                 font-size: 15px;
-                padding: 7px;
+                padding: 6px 7px;
             }
 
-            /* Datumsfeld speziell noch einen Tick kleiner,
-               damit es sich optisch in die Filterreihe einfügt */
-            input[type="date"] {
-                font-size: 13px;
-                padding: 5px 7px;
+            /* Datum/Zeit auf Handy noch etwas kleiner & optisch passend */
+            input[type="date"],
+            input[type="time"] {
+                font-size: 14px;
+                padding: 5px 6px;
+                max-width: 200px;  /* etwas schmaler als auf Desktop */
             }
         }
     </style>
