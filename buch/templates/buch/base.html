@@ -15,43 +15,48 @@
             --text-color: #111111;
             --muted-text: #666666;
             --border-color: #cccccc;
-            --header-bg: #eeeeee;
+            --header-bg: #f1f3f5;
             --card-bg: #f9f9f9;
 
-            --primary-color: #007bff;
+            --primary-color: #2563eb;
             --primary-text-on: #ffffff;
 
             --danger-color: #dc3545;
             --danger-text-on: #ffffff;
 
             --button-bg: #ffffff;
-            --button-border: #007bff;
-            --button-text: #007bff;
+            --button-border: #2563eb;
+            --button-text: #2563eb;
         }
 
         [data-theme="dark"] {
-            --bg-color: #121212;
-            --bg-color-alt: #181818;
+            --bg-color: #0b0b0f;
+            --bg-color-alt: #15151c;
             --text-color: #f5f5f5;
             --muted-text: #aaaaaa;
             --border-color: #333333;
-            --header-bg: #202020;
-            --card-bg: #1f1f1f;
+            --header-bg: #20202a;
+            --card-bg: #1f1f28;
 
-            --primary-color: #3d8bff;
+            --primary-color: #3b82f6;
             --primary-text-on: #ffffff;
 
             --danger-color: #ff5c5c;
             --danger-text-on: #ffffff;
 
-            --button-bg: #1f1f1f;
-            --button-border: #3d8bff;
+            --button-bg: #1f1f28;
+            --button-border: #3b82f6;
             --button-text: #e0e0e0;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 16px;
+            margin: 0;
+            padding: 16px;
             font-size: 16px;
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -61,17 +66,22 @@
             max-width: 1100px;
             margin: 0 auto;
             background-color: var(--bg-color-alt);
-            padding: 12px 16px 40px 16px;
-            border-radius: 8px;
+            padding: 16px 18px 40px 18px;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.06);
         }
 
         header {
             margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
         }
 
         header h1 {
             margin: 0 0 8px 0;
+            font-size: 24px;
+            letter-spacing: 0.02em;
         }
 
         nav {
@@ -79,6 +89,7 @@
             flex-wrap: wrap;
             gap: 8px;
             align-items: center;
+            row-gap: 6px;
         }
 
         nav a {
@@ -87,6 +98,11 @@
 
         .nav-spacer {
             flex: 1 1 auto;
+        }
+
+        .nav-user {
+            font-size: 13px;
+            color: var(--muted-text);
         }
 
         table {
@@ -103,6 +119,7 @@
 
         th {
             background: var(--header-bg);
+            text-align: left;
         }
 
         .table-wrapper {
@@ -120,7 +137,7 @@
         .stat-box {
             padding: 10px;
             border: 1px solid var(--border-color);
-            border-radius: 4px;
+            border-radius: 8px;
             background: var(--card-bg);
             flex: 1 1 140px;
         }
@@ -132,24 +149,36 @@
 
         .stat-value {
             font-size: 20px;
-            font-weight: bold;
+            font-weight: 600;
         }
 
         .btn {
             display: inline-block;
             padding: 6px 10px;
-            border-radius: 4px;
+            border-radius: 999px;
             border: 1px solid var(--button-border);
             color: var(--button-text);
             background: var(--button-bg);
             font-size: 14px;
             cursor: pointer;
+            line-height: 1.2;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+                        transform 0.06s ease;
+        }
+
+        .btn:hover {
+            background: rgba(37,99,235,0.06);
+            transform: translateY(-1px);
         }
 
         .btn-primary {
             background: var(--primary-color);
             color: var(--primary-text-on);
             border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
         }
 
         .btn-danger {
@@ -169,7 +198,7 @@
         }
 
         .btn + .btn {
-            margin-left: 6px;
+            margin-left: 4px;
         }
 
         .field {
@@ -187,19 +216,13 @@
         select,
         textarea {
             width: 100%;
-            padding: 8px;
-            font-size: 16px; /* angenehm für Touch UND PC */
-            box-sizing: border-box;
+            padding: 8px 10px;
+            font-size: 15px;
             background-color: var(--bg-color-alt);
             color: var(--text-color);
             border: 1px solid var(--border-color);
-            border-radius: 4px;
-        }
-
-        /* speziell: Datum/Zeit etwas kompakter + nicht „endlos lang“ */
-        input[type="date"],
-        input[type="time"] {
-            max-width: 230px;       /* verhindert zu lange Felder in Grids/Formularen */
+            border-radius: 6px;
+            appearance: none;
         }
 
         input:focus,
@@ -207,6 +230,11 @@
         textarea:focus {
             outline: 2px solid var(--primary-color);
             outline-offset: 1px;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
         }
 
         .errors {
@@ -232,14 +260,28 @@
             font-weight: 600;
         }
 
+        /* Speziell: Filter-Bereich kompakter machen */
+        #filter-container input,
+        #filter-container select {
+            max-width: 260px;     /* Desktop: nicht übertrieben breit */
+        }
+
+        /* Datum/Zeit im Filter leicht schlanker wirken lassen */
+        #filter-container input[type="date"],
+        #filter-container input[type="time"] {
+            font-size: 14px;
+            padding: 6px 8px;
+        }
+
         /* 🔽 kleinere Bildschirme (iPhones etc.) */
         @media (max-width: 600px) {
             body {
-                margin: 10px;
+                padding: 10px;
             }
 
             .container {
-                padding: 10px 10px 40px 10px;
+                padding: 12px 12px 36px 12px;
+                border-radius: 10px;
             }
 
             header h1 {
@@ -252,71 +294,26 @@
             }
 
             .btn {
-                font-size: 14px;
-                padding: 6px 8px;
+                font-size: 13px;
+                padding: 6px 9px;
             }
 
             th, td {
                 white-space: nowrap;
+                font-size: 13px;
             }
 
-            /* Inputs auf Handy insgesamt etwas kompakter */
-            input,
-            select,
-            textarea {
-                font-size: 15px;
-                padding: 6px 7px;
-            }
-
-            /* Datum/Zeit auf Handy noch etwas kleiner & optisch passend */
-            input[type="date"],
-            input[type="time"] {
+            /* Filter: Felder auf Handy noch etwas kompakter */
+            #filter-container input,
+            #filter-container select {
                 font-size: 14px;
-                padding: 5px 6px;
-                max-width: 200px;  /* etwas schmaler als auf Desktop */
+                padding: 5px 7px;
             }
 
-            /* -------------------------------------------- */
-            /* SPEZIAL: Filter-Felder kompakter machen      */
-            /* -------------------------------------------- */
-
-            /* Grundlegende Einheitlichkeit */
-            .filter-panel input,
-            .filter-panel select {
-                max-width: 180px !important; 
-                padding: 5px 6px !important;
-                font-size: 14px !important;
-            }
-
-            /* Datum/Zeit im Filter separat, noch kompakter */
-            .filter-panel input[type="date"],
-            .filter-panel input[type="time"] {
-                max-width: 150px !important;
-                height: 34px !important;
-                min-height: 34px !important;
-                font-size: 13px !important;
-                padding: 4px 5px !important;
-                appearance: none;
-                -webkit-appearance: none;
-            }
-
-            /* iPhone/iOS Fix – zwingt Safari die Höhe zu akzeptieren */
-            @supports (-webkit-touch-callout: none) {
-                .filter-panel input[type="date"],
-                .filter-panel input[type="time"] {
-                    font-size: 12px !important;
-                    padding: 3px 5px !important;
-                    height: 32px !important;
-                    min-height: 32px !important;
-                }
-            }
-
-            /* Grid des Filters auf Mobil enger machen */
-            @media (max-width: 600px) {
-                .filter-panel {
-                    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important;
-                    gap: 6px !important;
-                }
+            #filter-container input[type="date"],
+            #filter-container input[type="time"] {
+                font-size: 13px;
+                padding: 4px 6px;
             }
         }
     </style>
@@ -330,7 +327,7 @@
                 <a href="{% url 'home' %}" class="btn">Übersicht</a>
                 <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>
 
-                <span>Angemeldet als: {{ user.username }}</span>
+                <span class="nav-user">Angemeldet als: {{ user.username }}</span>
                 <a href="{% url 'password_change' %}" class="btn">Passwort ändern</a>
                 <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
             {% else %}
