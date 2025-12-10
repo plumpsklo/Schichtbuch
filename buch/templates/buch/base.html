@@ -6,6 +6,7 @@
     <title>Schichtbuch – {% block title %}{% endblock %}</title>
     <!-- wichtig für iPhone & Co -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     {# Optionaler Block für seiten-spezifische Styles/JS #}
     {% block extra_head %}{% endblock %}
 
@@ -309,7 +310,7 @@
         /* Speziell: Filter-Bereich kompakter machen */
         #filter-container input,
         #filter-container select {
-            max-width: 260px;     /* Desktop: nicht übertrieben breit */
+            max-width: 210px;  /* etwas kürzer als vorher */
         }
 
         /* Datum/Zeit im Filter leicht schlanker wirken lassen */
@@ -373,27 +374,8 @@
                 <a href="{% url 'home' %}" class="btn">Übersicht</a>
                 <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>
 
-                {# Globale Benachrichtigungen (@-Mentions, etc.) #}
-                <a href="{% url 'notifications_inbox' %}"
-                    class="btn"
-                    style="position: relative;">
-                    Hinweise
-                    {% if header_unread_notifications_count %}
-                        <span style="
-                            display:inline-block;
-                            min-width:18px;
-                            padding:0 4px;
-                            margin-left:4px;
-                            border-radius:10px;
-                            background: var(--danger-color);
-                            color: var(--danger-text-on);
-                            font-size:11px;
-                            text-align:center;
-                        ">
-                            {{ header_unread_notifications_count }}
-                        </span>
-                    {% endif %}
-                </a>
+                {# Hier könntest du später wieder eine Hinweise/Benachrichtigungen-Ansicht verlinken,
+                   sobald eine URL wie 'notifications_inbox' wirklich existiert. #}
 
                 <span>Angemeldet als: {{ user.username }}</span>
                 <a href="{% url 'password_change' %}" class="btn">Passwort ändern</a>
