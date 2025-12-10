@@ -695,3 +695,18 @@ def toggle_like(request, entry_id):
         like.delete()
 
     return redirect("entry_detail", entry_id=entry.id)
+
+@login_required
+def mention_notifications_view(request):
+    """
+    Platzhalter-Ansicht für Erwähnungs-Benachrichtigungen.
+
+    Aktuell nur Dummy-Seite, damit der URL-Import nicht crasht.
+    Später kannst du hier echte Mention-Logik einbauen
+    (z.B. ungelesene Erwähnungen aus der DB laden).
+    """
+    notifications = []  # TODO: später echte Daten laden
+    context = {
+        "notifications": notifications,
+    }
+    return render(request, "buch/mentions.html", context)
