@@ -12,7 +12,6 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-
 from django.contrib.auth.models import User
 
 from .models import (
@@ -34,9 +33,10 @@ from .forms import ShiftEntryForm, ShiftEntryUpdateForm
 MENTION_PATTERN = re.compile(r"@([A-Za-z0-9_.\-]+)")
 
 
-def _create_mentions_from_text(text, entry, created_by, source):
+def _create_mentions_from_text(text, entry, created_by, source: str):
     """
     Sucht im Text nach @username und legt MentionNotification für existierende User an.
+
     - text: Titel, Beschreibung oder Kommentar
     - entry: ShiftEntry-Instanz
     - created_by: User, der die Erwähnung auslöst
@@ -45,14 +45,16 @@ def _create_mentions_from_text(text, entry, created_by, source):
     if not text:
         return
 
+    # Alle Usernames aus dem Text ziehen (ohne Duplikate)
     usernames = set(MENTION_PATTERN.findall(text))
     if not usernames:
         return
 
+    # Passende Benutzer holen
     users = User.objects.filter(username__in=usernames).distinct()
 
     for target_user in users:
-        # Sich selbst zu markieren macht keinen Sinn -> überspringen
+        # Sich selbst erwähnen ist sinnlos -> überspringen
         if created_by and target_user.id == created_by.id:
             continue
 
@@ -313,7 +315,7 @@ def new_entry(request):
 
             entry.save()
 
-            # ManyToMany: weitere Mitarbeiter (falls Feld im Formular vorhanden)
+            # ManyToMany: weitere Mitarbeiter
             additional_workers = form.cleaned_data.get("additional_workers")
             if additional_workers is not None:
                 entry.additional_workers.set(additional_workers)
@@ -569,13 +571,15 @@ def toggle_spare_parts_processed(request, entry_id):
 
 
 # -------------------------------------------------------------------
-# Erwähnungs-Benachrichtigungen
+# Erwähnungs-Benachrichtigungen – klassische Ansicht
+# (wird z.B. über URL-Namen 'mention_notifications' aufgerufen)
 # -------------------------------------------------------------------
 @login_required
 def mention_notifications_view(request):
     """
     Liste der Erwähnungs-Benachrichtigungen für den eingeloggten Benutzer.
     Optional: per POST alle als gelesen markieren.
+    Nutzt das Template buch/mention_notifications.html mit Kontext 'notifications'.
     """
     qs = (
         MentionNotification.objects
@@ -585,7 +589,6 @@ def mention_notifications_view(request):
     )
 
     if request.method == "POST":
-        # Alle als gelesen markieren
         qs.update(is_read=True)
         return redirect("mention_notifications")
 
@@ -596,34 +599,38 @@ def mention_notifications_view(request):
     }
     return render(request, "buch/mention_notifications.html", context)
 
+
+# -------------------------------------------------------------------
+# Erwähnungs-Benachrichtigungen – Inbox (Header-Button "Hinweise")
+# -------------------------------------------------------------------
 @login_required
 def notifications_inbox(request):
     """
-    Zeigt alle @-Mention-Benachrichtigungen für den aktuellen Benutzer.
-    - Ungelesene werden (optional) oben angezeigt
-    - Beim Öffnen können wir sie direkt als 'gelesen' markieren.
+    Wird von der Navigationsleiste (Button 'Hinweise') aufgerufen.
+    Nutzt das gleiche Template wie mention_notifications_view.
+
+    - zeigt alle Erwähnungen (unabhängig von gelesen/ungelesen)
+    - markiert beim Aufruf alle ungelesenen als gelesen
     """
     user = request.user
 
-    unread_qs = MentionNotification.objects.filter(
-        user=user,
-        is_read=False,
-    ).select_related("entry", "created_by")
+    qs = (
+        MentionNotification.objects
+        .filter(user=user)
+        .select_related("entry", "created_by", "entry__machine")
+        .order_by("-created_at")
+    )
 
-    read_qs = MentionNotification.objects.filter(
-        user=user,
-        is_read=True,
-    ).select_related("entry", "created_by")[:100]  # z.B. die letzten 100 gelesenen
+    # Ungelesene beim Öffnen als gelesen markieren
+    qs.filter(is_read=False).update(is_read=True)
 
-    # Optional: alle ungelesenen als gelesen markieren, sobald der Nutzer die Inbox aufruft
-    if unread_qs.exists():
-        unread_qs.update(is_read=True)
+    notifications = list(qs)
 
     context = {
-        "unread_notifications": unread_qs,
-        "read_notifications": read_qs,
+        "notifications": notifications,
     }
     return render(request, "buch/mention_notifications.html", context)
+
 
 # -------------------------------------------------------------------
 # Diagnose-Seite Medien

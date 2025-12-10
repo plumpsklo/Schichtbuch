@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Machine, ShiftEntry, ShiftEntryImage, ShiftEntryUpdate
+from .models import Machine, ShiftEntry, ShiftEntryImage, ShiftEntryUpdate, MentionNotification
 
 
 class ShiftEntryImageInline(admin.TabularInline):
@@ -12,6 +12,23 @@ class MachineAdmin(admin.ModelAdmin):
     list_display = ('name', 'location', 'manufacturer', 'is_active')
     list_filter = ('is_active',)
 
+@admin.register(MentionNotification)
+class MentionNotificationAdmin(admin.ModelAdmin):
+    """
+    Admin-Ansicht für @-Mention-Benachrichtigungen.
+    Hilfreich zum Debuggen, ob Mentions überhaupt angelegt werden.
+    """
+    list_display = (
+        "user",
+        "entry",
+        "source",
+        "is_read",
+        "created_by",
+        "created_at",
+    )
+    list_filter = ("is_read", "source", "user")
+    search_fields = ("text_snippet", "entry__title", "created_by__username")
+    autocomplete_fields = ("user", "entry", "created_by")
 
 @admin.register(ShiftEntry)
 class ShiftEntryAdmin(admin.ModelAdmin):
