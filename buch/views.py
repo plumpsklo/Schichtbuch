@@ -5,7 +5,6 @@ import re
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db.models import Count, Q
@@ -14,6 +13,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from django.contrib.auth.models import User
+
 from .models import (
     Machine,
     ShiftEntry,
@@ -21,65 +22,50 @@ from .models import (
     ShiftEntryVideo,
     Like,
     ShiftEntryUpdate,
+    MentionNotification,
 )
-
-# Optionales Notification-Model:
-# Wenn du ein Notification-Model anlegst, wird es genutzt.
-# Wenn nicht, bricht nichts – es werden nur keine DB-Benachrichtigungen erzeugt.
-try:
-    from .models import Notification  # type: ignore
-except Exception:  # falls es (noch) nicht existiert
-    Notification = None
+from .forms import ShiftEntryForm, ShiftEntryUpdateForm
 
 
-# -------------------------------------------------------------------
-# Hilfsfunktionen: @-Mentions erkennen und Benachrichtigungen anlegen
-# -------------------------------------------------------------------
+# ---------------------------------------------------------
+# Helper: @username im Text erkennen und Benachrichtigungen erstellen
+# ---------------------------------------------------------
 
-MENTION_REGEX = re.compile(r'@([\w.@+-]+)')
+MENTION_PATTERN = re.compile(r"@([A-Za-z0-9_.\-]+)")
 
 
-def extract_mentioned_users(text):
+def _create_mentions_from_text(text, entry, created_by, source):
     """
-    Sucht im Text nach @username und gibt eine Liste von User-Objekten zurück.
-    - text: beliebiger String (Titel, Beschreibung, Kommentar)
+    Sucht im Text nach @username und legt MentionNotification für existierende User an.
+    - text: Titel, Beschreibung oder Kommentar
+    - entry: ShiftEntry-Instanz
+    - created_by: User, der die Erwähnung auslöst
+    - source: "ENTRY" oder "UPDATE"
     """
     if not text:
-        return []
+        return
 
-    usernames = set(MENTION_REGEX.findall(text))
+    usernames = set(MENTION_PATTERN.findall(text))
     if not usernames:
-        return []
-
-    users = list(User.objects.filter(username__in=usernames))
-    return users
-
-
-def create_mention_notifications(sender, mentioned_users, entry, source="entry"):
-    """
-    Legt Benachrichtigungen für erwähnte User an, falls ein Notification-Model existiert.
-    - sender: User, der die Erwähnung erstellt hat
-    - mentioned_users: Liste von User-Objekten
-    - entry: ShiftEntry, zu dem die Erwähnung gehört
-    - source: "entry" oder "update" o.ä. zur Unterscheidung der Quelle
-    """
-    if Notification is None:
-        # Projekt läuft auch ohne Notification-Model weiter.
         return
 
-    if not mentioned_users:
-        return
+    users = User.objects.filter(username__in=usernames).distinct()
 
-    for u in mentioned_users:
-        if not u or u == sender:
+    for target_user in users:
+        # Sich selbst zu markieren macht keinen Sinn -> überspringen
+        if created_by and target_user.id == created_by.id:
             continue
 
-        Notification.objects.create(
-            user=u,
-            created_by=sender,
+        snippet = text.strip()
+        if len(snippet) > 200:
+            snippet = snippet[:197] + "..."
+
+        MentionNotification.objects.create(
+            user=target_user,
             entry=entry,
+            created_by=created_by,
             source=source,
-            message="Du wurdest in einem Schichtbucheintrag erwähnt.",
+            text_snippet=snippet,
         )
 
 
@@ -91,16 +77,15 @@ def home(request):
     """
     Übersicht / Dashboard:
     - Statistik-Kacheln (heute / Woche / offen / erledigt)
-    - Diagramme (eigener Tab, 7 Tage)
+    - Diagramm-Daten (eigener Tab in home.html)
     - Eintragsliste mit:
       * Filtern (Maschine, Status, Schicht, Kategorie, Datum von/bis)
       * Suchfeld (Titel)
       * Einträge pro Seite wählbar
-      * einklappbarer Filterblock
-    - Benachrichtigungen für Meister/Admin (eigener Tab, offene SAP-Ersatzteile)
+    - Benachrichtigungen bei offenen Ersatzteil-Buchungen (eigener Tab)
     """
     today = timezone.localdate()
-    week_start = today - timedelta(days=today.weekday())  # Montag (Wochenanfang)
+    week_start = today - timedelta(days=today.weekday())  # Montag
 
     # --- Statistik-Kacheln ---
     entries_today = ShiftEntry.objects.filter(date=today).count()
@@ -153,6 +138,7 @@ def home(request):
     entries_qs = (
         ShiftEntry.objects
         .select_related("machine", "user")
+        .prefetch_related("additional_workers")
         .order_by("-date", "-created_at")
     )
 
@@ -224,7 +210,7 @@ def home(request):
         or per_page != default_per_page
     )
 
-    # --- Rolle: ist der aktuelle Benutzer Meister/Admin? ---
+    # --- Rolle: Meister/Admin? ---
     user = request.user
     is_admin_or_meister = (
         user.is_authenticated
@@ -235,7 +221,7 @@ def home(request):
         )
     )
 
-    # --- Benachrichtigungen: offene Ersatzteil-Buchungen (nur für Meister/Admin) ---
+    # --- Benachrichtigungen: offene Ersatzteil-Buchungen ---
     notifications = []
     notifications_count = 0
     if is_admin_or_meister:
@@ -271,7 +257,6 @@ def home(request):
         "per_page": per_page,
         "per_page_options": per_page_options,
         "filters_active": filters_active,
-        "default_per_page": default_per_page,
 
         # Filter-/Suchwerte (für Formular + Pagination)
         "filter_machine": filter_machine,
@@ -311,21 +296,16 @@ def new_entry(request):
     Neuen Schichtbucheintrag anlegen.
     - Basisdaten über ShiftEntryForm
     - optionale Medien (Bild, Video)
-    - Datum + Uhrzeit werden zu action_datetime kombiniert (falls Feld genutzt)
-      bzw. auf date/time gemappt.
-    - zusätzliche Mitarbeiter (Teilnehmer) können ausgewählt werden, wenn
-      das Model ein ManyToMany-Feld 'participants' hat.
-    - @-Mentions in der Beschreibung erzeugen ggf. Notifications.
+    - zusätzliche Mitarbeiter (additional_workers)
+    - @Erwähnungen in Titel/Beschreibung erzeugen MentionNotification
     """
-    from .forms import ShiftEntryForm  # lokal importiert, um zirkuläre Imports zu vermeiden
-
     if request.method == "POST":
         form = ShiftEntryForm(request.POST, request.FILES)
         if form.is_valid():
             entry = form.save(commit=False)
             entry.user = request.user
 
-            # kombiniertes Datum+Uhrzeit aus der Form übernehmen (falls verwendet)
+            # Falls Formular ein kombiniertes action_datetime liefert, darauf mappen
             action_dt = form.cleaned_data.get("action_datetime")
             if action_dt:
                 entry.date = action_dt.date()
@@ -333,28 +313,32 @@ def new_entry(request):
 
             entry.save()
 
-            # Teilnehmer (weitere Mitarbeiter)
-            participants = form.cleaned_data.get("participants", None)
-            if participants is not None and hasattr(entry, "participants"):
-                entry.participants.set(participants)
+            # ManyToMany: weitere Mitarbeiter (falls Feld im Formular vorhanden)
+            additional_workers = form.cleaned_data.get("additional_workers")
+            if additional_workers is not None:
+                entry.additional_workers.set(additional_workers)
 
-            # Bild (optional)
+            # Medien
             image_file = form.cleaned_data.get("image")
             if image_file:
                 ShiftEntryImage.objects.create(entry=entry, image=image_file)
 
-            # Video (optional)
             video_file = form.cleaned_data.get("video")
             if video_file:
                 ShiftEntryVideo.objects.create(entry=entry, video=video_file)
 
-            # @-Mentions in der Beschreibung -> Notifications
-            mentioned_users = extract_mentioned_users(entry.description)
-            create_mention_notifications(
-                sender=request.user,
-                mentioned_users=mentioned_users,
+            # @mentions in Titel & Beschreibung
+            _create_mentions_from_text(
+                text=entry.title,
                 entry=entry,
-                source="entry",
+                created_by=request.user,
+                source="ENTRY",
+            )
+            _create_mentions_from_text(
+                text=entry.description,
+                entry=entry,
+                created_by=request.user,
+                source="ENTRY",
             )
 
             return redirect("home")
@@ -376,18 +360,16 @@ def new_entry(request):
 def entry_detail(request, entry_id):
     """
     Detailansicht eines Schichtbucheintrags:
-    - zeigt Grunddaten, Bilder, Videos
+    - zeigt Grunddaten, weitere Mitarbeiter, Bilder, Videos
     - zeigt Historie (ShiftEntryUpdate)
-    - zeigt zusätzliche Mitarbeiter (Teilnehmer), falls Model-Feld vorhanden
-    - über can_view_spares wird gesteuert, wer Ersatzteile sieht:
-      * Admin
-      * Meister
-      * Ersteller
-      * jeder, der einen Update-Eintrag zu diesem Eintrag geschrieben hat
-    - can_process_spares: steuert, ob der Benutzer den SAP-Status toggeln darf
-      (nur Admin/Meister).
+    - Ersatzteile & SAP-Fahne (nur für berechtigte Rollen)
     """
-    entry = get_object_or_404(ShiftEntry, id=entry_id)
+    entry = get_object_or_404(
+        ShiftEntry.objects
+        .select_related("machine", "user")
+        .prefetch_related("additional_workers", "images", "videos", "updates", "likes"),
+        id=entry_id,
+    )
     user = request.user
 
     # Rollen / Berechtigungen
@@ -406,19 +388,11 @@ def entry_detail(request, entry_id):
     can_process_spares = is_admin_or_meister
 
     # Likes
-    likes_count = getattr(entry, "likes", None).count() if hasattr(entry, "likes") else 0
-    user_liked = (
-        hasattr(entry, "likes")
-        and entry.likes.filter(user=user).exists()
-    )
+    likes_count = entry.likes.count()
+    user_liked = entry.likes.filter(user=user).exists()
 
     # Historie (Ergänzungen)
     updates = entry.updates.select_related("user").all()
-
-    # Teilnehmer (weitere Mitarbeiter) – nur, wenn das Feld existiert
-    participants = []
-    if hasattr(entry, "participants"):
-        participants = list(entry.participants.all())
 
     context = {
         "entry": entry,
@@ -427,7 +401,6 @@ def entry_detail(request, entry_id):
         "likes_count": likes_count,
         "user_liked": user_liked,
         "updates": updates,
-        "participants": participants,
     }
     return render(request, "buch/entry_detail.html", context)
 
@@ -442,19 +415,10 @@ def update_entry(request, entry_id):
     - Kommentar
     - Zeitpunkt der Maßnahme (Form prüft: nicht in der Zukunft)
     - optional neuer Status
-    - optionale Ersatzteil-Daten (alte Felder am ShiftEntry):
-      -> wenn gleiche SAP-Nummer wie im Haupteintrag:
-         * entnommene Anzahl wird addiert
-         * Bestand wird durch neuen Wert ersetzt
-      -> wenn andere SAP-Nummer oder bisher keine:
-         * Werte werden gesetzt / überschrieben
+    - optionale Ersatzteil-Daten (alte Felder)
     - optionale zusätzliche Medien (Bild, Video)
-    - optional Anpassung der Teilnehmer (weitere Mitarbeiter), falls
-      das Form-Feld "participants" und das Model-Feld existieren.
-    - @-Mentions im Kommentar erzeugen ggf. Notifications.
+    - @Erwähnungen im Kommentar erzeugen MentionNotification (Quelle=UPDATE)
     """
-    from .forms import ShiftEntryUpdateForm  # lokal importiert
-
     entry = get_object_or_404(ShiftEntry, id=entry_id)
 
     if request.method == "POST":
@@ -468,7 +432,7 @@ def update_entry(request, entry_id):
             new_status = form.cleaned_data.get("status") or entry.status
 
             # -----------------------------
-            # Ersatzteil-Daten aus Formular
+            # Ersatzteil-Daten (alte Felder)
             # -----------------------------
             used_spare_parts = form.cleaned_data.get("used_spare_parts")
             spare_desc = form.cleaned_data.get("spare_part_description")
@@ -479,22 +443,19 @@ def update_entry(request, entry_id):
             # -----------------------------
             # Änderungen am Haupteintrag
             # -----------------------------
-            # 1) Status setzen (noch nicht speichern)
             entry.status = new_status
 
-            # 2) Ersatzteil-Logik (alte Felder)
             if used_spare_parts and spare_sap:
                 entry.used_spare_parts = True
 
                 existing_sap = (entry.spare_part_sap_number or "").strip()
                 new_sap = spare_sap.strip()
 
-                # Beschreibung: nur setzen, wenn bisher leer
+                # Beschreibung ggf. setzen
                 if spare_desc and not entry.spare_part_description:
                     entry.spare_part_description = spare_desc
 
                 if existing_sap and existing_sap == new_sap:
-                    # Gleiche SAP-Nummer -> entnommene Anzahl addieren
                     old_qty_used = entry.spare_part_quantity_used or 0
                     add_qty = qty_used or 0
                     entry.spare_part_quantity_used = old_qty_used + add_qty
@@ -510,28 +471,17 @@ def update_entry(request, entry_id):
                     if qty_remaining is not None:
                         entry.spare_part_quantity_remaining = qty_remaining
 
-                # Sobald erneut Ersatzteile eingetragen werden, ist die SAP-Buchung
-                # ggf. nicht mehr aktuell -> zurücksetzen
-                if hasattr(entry, "spare_parts_processed"):
-                    entry.spare_parts_processed = False
-                if hasattr(entry, "spare_parts_processed_by"):
-                    entry.spare_parts_processed_by = None
-                if hasattr(entry, "spare_parts_processed_at"):
-                    entry.spare_parts_processed_at = None
+                # sobald erneut Ersatzteile erfasst werden, ist SAP-Fahne ungültig
+                entry.spare_parts_processed = False
+                entry.spare_parts_processed_by = None
+                entry.spare_parts_processed_at = None
 
-            # Teilnehmer (weitere Mitarbeiter) aus dem Update-Form übernehmen,
-            # falls das Feld existiert.
-            participants = form.cleaned_data.get("participants", None)
-            if participants is not None and hasattr(entry, "participants"):
-                entry.participants.set(participants)
-
-            # 3) Änderungen am Haupteintrag speichern
             entry.save()
 
             # -----------------------------
             # Historien-Eintrag anlegen
             # -----------------------------
-            update_obj = ShiftEntryUpdate.objects.create(
+            ShiftEntryUpdate.objects.create(
                 entry=entry,
                 user=request.user,
                 comment=comment,
@@ -551,31 +501,23 @@ def update_entry(request, entry_id):
             if video_file:
                 ShiftEntryVideo.objects.create(entry=entry, video=video_file)
 
-            # @-Mentions im Kommentar -> Notifications
-            mentioned_users = extract_mentioned_users(comment)
-            create_mention_notifications(
-                sender=request.user,
-                mentioned_users=mentioned_users,
+            # -----------------------------
+            # @Erwähnungen im Kommentar
+            # -----------------------------
+            _create_mentions_from_text(
+                text=comment,
                 entry=entry,
-                source="update",
+                created_by=request.user,
+                source="UPDATE",
             )
 
             return redirect("entry_detail", entry_id=entry.id)
     else:
-        # Default: jetzt, auf volle Minute gerundet, Status = aktueller Status
         now = timezone.localtime().replace(second=0, microsecond=0)
-        initial = {
+        form = ShiftEntryUpdateForm(initial={
             "action_time": now,
             "status": entry.status,
-        }
-
-        # Wenn Teilnehmer-Feld im Model vorhanden ist, könnte man hier
-        # initiale Teilnehmer vorbelegen. Das setzt allerdings voraus,
-        # dass ShiftEntryUpdateForm ein entsprechendes Feld hat.
-        if hasattr(entry, "participants"):
-            initial["participants"] = entry.participants.all()
-
-        form = ShiftEntryUpdateForm(initial=initial)
+        })
 
     return render(request, "buch/entry_update.html", {
         "entry": entry,
@@ -595,49 +537,64 @@ def toggle_spare_parts_processed(request, entry_id):
 
     Bedingungen:
     - Benutzer muss Admin/Meister sein.
-    - Für den Eintrag müssen überhaupt Ersatzteile erfasst sein
-      (entweder alte Felder oder strukturierte SpareParts).
+    - Für den Eintrag müssen überhaupt Ersatzteile erfasst sein.
     """
     entry = get_object_or_404(ShiftEntry, id=entry_id)
     user = request.user
 
-    # Rolle prüfen
     is_admin_or_meister = (
         user.is_superuser
         or user.is_staff
         or user.groups.filter(name__in=["Admin", "Meister"]).exists()
     )
-
     if not is_admin_or_meister:
         return redirect("entry_detail", entry_id=entry.id)
 
-    # Wenn keine Ersatzteile erfasst sind, macht der Haken keinen Sinn
-    if not getattr(entry, "has_any_spare_parts", False):
-        return redirect("entry_detail", entry_id=entry.id)
-
-    # Status umschalten
-    if not hasattr(entry, "spare_parts_processed"):
+    if not entry.has_any_spare_parts:
         return redirect("entry_detail", entry_id=entry.id)
 
     new_state = not entry.spare_parts_processed
     entry.spare_parts_processed = new_state
 
     if new_state:
-        # Jetzt als bearbeitet markiert -> User + Zeitstempel setzen
-        if hasattr(entry, "spare_parts_processed_by"):
-            entry.spare_parts_processed_by = user
-        if hasattr(entry, "spare_parts_processed_at"):
-            entry.spare_parts_processed_at = timezone.now()
+        entry.spare_parts_processed_by = user
+        entry.spare_parts_processed_at = timezone.now()
     else:
-        # Zurückgesetzt -> Felder leeren
-        if hasattr(entry, "spare_parts_processed_by"):
-            entry.spare_parts_processed_by = None
-        if hasattr(entry, "spare_parts_processed_at"):
-            entry.spare_parts_processed_at = None
+        entry.spare_parts_processed_by = None
+        entry.spare_parts_processed_at = None
 
     entry.save()
 
     return redirect("entry_detail", entry_id=entry.id)
+
+
+# -------------------------------------------------------------------
+# Erwähnungs-Benachrichtigungen
+# -------------------------------------------------------------------
+@login_required
+def mention_notifications_view(request):
+    """
+    Liste der Erwähnungs-Benachrichtigungen für den eingeloggten Benutzer.
+    Optional: per POST alle als gelesen markieren.
+    """
+    qs = (
+        MentionNotification.objects
+        .filter(user=request.user)
+        .select_related("entry", "created_by", "entry__machine")
+        .order_by("-created_at")
+    )
+
+    if request.method == "POST":
+        # Alle als gelesen markieren
+        qs.update(is_read=True)
+        return redirect("mention_notifications")
+
+    notifications = list(qs)
+
+    context = {
+        "notifications": notifications,
+    }
+    return render(request, "buch/mention_notifications.html", context)
 
 
 # -------------------------------------------------------------------
@@ -659,11 +616,10 @@ def debug_media(request):
         lines.append("Keine ShiftEntryImage-Objekte in der DB.")
     else:
         for img in images:
-            path = img.image.name  # z.B. 'shift_images/IMG_1285_nn1VSlI.jpeg'
+            path = img.image.name
             exists = default_storage.exists(path)
             lines.append(f"{img.id}: {path} -> exists={exists}")
 
-    # Prüfen, ob der Ordner shift_images existiert und was drin liegt
     shift_dir = os.path.join(settings.MEDIA_ROOT, "shift_images")
     if os.path.isdir(shift_dir):
         files = os.listdir(shift_dir)
@@ -691,22 +647,6 @@ def toggle_like(request, entry_id):
     )
 
     if not created:
-        # existierte schon -> wieder entfernen = "unlike"
         like.delete()
 
     return redirect("entry_detail", entry_id=entry.id)
-
-@login_required
-def mention_notifications_view(request):
-    """
-    Platzhalter-Ansicht für Erwähnungs-Benachrichtigungen.
-
-    Aktuell nur Dummy-Seite, damit der URL-Import nicht crasht.
-    Später kannst du hier echte Mention-Logik einbauen
-    (z.B. ungelesene Erwähnungen aus der DB laden).
-    """
-    notifications = []  # TODO: später echte Daten laden
-    context = {
-        "notifications": notifications,
-    }
-    return render(request, "buch/mentions.html", context)
