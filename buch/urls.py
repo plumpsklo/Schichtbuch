@@ -9,6 +9,9 @@ urlpatterns = [
     # Neuer Eintrag
     path('eintrag/neu/', views.new_entry, name='new_entry'),
 
+    #Makieren von Usern in Einträgen
+    path("mentions/", views.mention_notifications_view, name="mention_notifications"),
+
     # Detailansicht eines Eintrags
     path('eintrag/<int:entry_id>/', views.entry_detail, name='entry_detail'),
 

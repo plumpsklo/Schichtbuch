@@ -38,6 +38,7 @@ class ShiftEntryForm(forms.ModelForm):
             "duration_minutes",
             "priority",
             "status",
+            "additional_workers",
 
             # Ersatzteile (Basis-Eintrag)
             "used_spare_parts",

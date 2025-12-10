@@ -98,6 +98,13 @@ class ShiftEntry(models.Model):
         on_delete=models.CASCADE,
         verbose_name="Maschine",
     )
+    additional_workers = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name="shift_entries_as_worker",
+        verbose_name="Weitere Mitarbeiter",
+        help_text="Weitere Kollegen, die an diesem Vorgang beteiligt waren.",
+    )
 
     # Klassifizierung und Beschreibung
     category = models.CharField(
@@ -431,3 +438,61 @@ class ShiftEntryUpdate(models.Model):
 
     def __str__(self) -> str:
         return f"Update zu {self.entry} von {self.user} am {self.action_time}"
+    
+# Makieren von Usern im Beitrag
+
+class MentionNotification(models.Model):
+    """
+    Benachrichtigung, wenn jemand in einem Eintrag oder Update mit @username
+    erwähnt wird.
+    """
+    SOURCE_CHOICES = [
+        ("ENTRY", "Eintrag"),
+        ("UPDATE", "Ergänzung"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="mention_notifications",
+        verbose_name="Benutzer",
+    )
+    entry = models.ForeignKey(
+        ShiftEntry,
+        on_delete=models.CASCADE,
+        related_name="mention_notifications",
+        verbose_name="Eintrag",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mentions_created",
+        verbose_name="Erstellt von",
+    )
+    source = models.CharField(
+        max_length=10,
+        choices=SOURCE_CHOICES,
+        default="ENTRY",
+        verbose_name="Quelle",
+    )
+    text_snippet = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Textauszug",
+    )
+    is_read = models.BooleanField(
+        default=False,
+        verbose_name="Gelesen",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Erstellt am",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"@Mention für {self.user} in {self.entry} ({self.source})"

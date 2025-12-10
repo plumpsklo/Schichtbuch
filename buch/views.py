@@ -1,9 +1,11 @@
 from datetime import timedelta
 import os
 import json
+import re
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.db.models import Count, Q
@@ -20,7 +22,65 @@ from .models import (
     Like,
     ShiftEntryUpdate,
 )
-from .forms import ShiftEntryForm, ShiftEntryUpdateForm
+
+# Optionales Notification-Model:
+# Wenn du ein Notification-Model anlegst, wird es genutzt.
+# Wenn nicht, bricht nichts – es werden nur keine DB-Benachrichtigungen erzeugt.
+try:
+    from .models import Notification  # type: ignore
+except Exception:  # falls es (noch) nicht existiert
+    Notification = None
+
+
+# -------------------------------------------------------------------
+# Hilfsfunktionen: @-Mentions erkennen und Benachrichtigungen anlegen
+# -------------------------------------------------------------------
+
+MENTION_REGEX = re.compile(r'@([\w.@+-]+)')
+
+
+def extract_mentioned_users(text):
+    """
+    Sucht im Text nach @username und gibt eine Liste von User-Objekten zurück.
+    - text: beliebiger String (Titel, Beschreibung, Kommentar)
+    """
+    if not text:
+        return []
+
+    usernames = set(MENTION_REGEX.findall(text))
+    if not usernames:
+        return []
+
+    users = list(User.objects.filter(username__in=usernames))
+    return users
+
+
+def create_mention_notifications(sender, mentioned_users, entry, source="entry"):
+    """
+    Legt Benachrichtigungen für erwähnte User an, falls ein Notification-Model existiert.
+    - sender: User, der die Erwähnung erstellt hat
+    - mentioned_users: Liste von User-Objekten
+    - entry: ShiftEntry, zu dem die Erwähnung gehört
+    - source: "entry" oder "update" o.ä. zur Unterscheidung der Quelle
+    """
+    if Notification is None:
+        # Projekt läuft auch ohne Notification-Model weiter.
+        return
+
+    if not mentioned_users:
+        return
+
+    for u in mentioned_users:
+        if not u or u == sender:
+            continue
+
+        Notification.objects.create(
+            user=u,
+            created_by=sender,
+            entry=entry,
+            source=source,
+            message="Du wurdest in einem Schichtbucheintrag erwähnt.",
+        )
 
 
 # -------------------------------------------------------------------
@@ -36,7 +96,8 @@ def home(request):
       * Filtern (Maschine, Status, Schicht, Kategorie, Datum von/bis)
       * Suchfeld (Titel)
       * Einträge pro Seite wählbar
-    - Benachrichtigungen für Meister/Admin (eigener Tab)
+      * einklappbarer Filterblock
+    - Benachrichtigungen für Meister/Admin (eigener Tab, offene SAP-Ersatzteile)
     """
     today = timezone.localdate()
     week_start = today - timedelta(days=today.weekday())  # Montag (Wochenanfang)
@@ -66,7 +127,7 @@ def home(request):
         status_labels.append(label)
         status_data.append(row["count"])
 
-    # --- Zeitraum für "letzte 7 Tage" (nur für Diagramm 2) ---
+    # --- Diagramm 2: Einträge pro Tag (letzte 7 Tage) ---
     days_back = 6
     start_date = today - timedelta(days=days_back)
 
@@ -117,14 +178,12 @@ def home(request):
         entries_qs = entries_qs.filter(category=filter_category)
 
     if filter_date_from:
-        # ISO-Format (YYYY-MM-DD) aus input[type=date] -> direkt nutzbar
         entries_qs = entries_qs.filter(date__gte=filter_date_from)
 
     if filter_date_to:
         entries_qs = entries_qs.filter(date__lte=filter_date_to)
 
     if filter_search:
-        # explizit nur im Titel suchen (wie gewünscht)
         entries_qs = entries_qs.filter(title__icontains=filter_search)
 
     # ---------------------------------------------------------
@@ -176,7 +235,7 @@ def home(request):
         )
     )
 
-    # --- Benachrichtigungen: offene Ersatzteil-Buchungen ---
+    # --- Benachrichtigungen: offene Ersatzteil-Buchungen (nur für Meister/Admin) ---
     notifications = []
     notifications_count = 0
     if is_admin_or_meister:
@@ -251,11 +310,15 @@ def new_entry(request):
     """
     Neuen Schichtbucheintrag anlegen.
     - Basisdaten über ShiftEntryForm
-    - ggf. optionale Medien (Bild, Video)
-    - Datum + Uhrzeit werden zu action_datetime kombiniert (falls im Model vorhanden)
-      und/oder auf date/time-Felder gemappt.
-    Die Form stellt sicher, dass die Zeitangabe nicht in der Zukunft liegt.
+    - optionale Medien (Bild, Video)
+    - Datum + Uhrzeit werden zu action_datetime kombiniert (falls Feld genutzt)
+      bzw. auf date/time gemappt.
+    - zusätzliche Mitarbeiter (Teilnehmer) können ausgewählt werden, wenn
+      das Model ein ManyToMany-Feld 'participants' hat.
+    - @-Mentions in der Beschreibung erzeugen ggf. Notifications.
     """
+    from .forms import ShiftEntryForm  # lokal importiert, um zirkuläre Imports zu vermeiden
+
     if request.method == "POST":
         form = ShiftEntryForm(request.POST, request.FILES)
         if form.is_valid():
@@ -265,13 +328,15 @@ def new_entry(request):
             # kombiniertes Datum+Uhrzeit aus der Form übernehmen (falls verwendet)
             action_dt = form.cleaned_data.get("action_datetime")
             if action_dt:
-                # Falls du im Model ein action_datetime-Feld hast, hier zuweisen:
-                # entry.action_datetime = action_dt
-                # Falls nicht, aber date/time befüllt werden sollen:
                 entry.date = action_dt.date()
                 entry.time = action_dt.time()
 
             entry.save()
+
+            # Teilnehmer (weitere Mitarbeiter)
+            participants = form.cleaned_data.get("participants", None)
+            if participants is not None and hasattr(entry, "participants"):
+                entry.participants.set(participants)
 
             # Bild (optional)
             image_file = form.cleaned_data.get("image")
@@ -283,12 +348,21 @@ def new_entry(request):
             if video_file:
                 ShiftEntryVideo.objects.create(entry=entry, video=video_file)
 
+            # @-Mentions in der Beschreibung -> Notifications
+            mentioned_users = extract_mentioned_users(entry.description)
+            create_mention_notifications(
+                sender=request.user,
+                mentioned_users=mentioned_users,
+                entry=entry,
+                source="entry",
+            )
+
             return redirect("home")
     else:
         now = timezone.localtime().replace(second=0, microsecond=0)
         initial = {
-            "date": now.date(),      # Datum = heute
-            "time": now.time(),      # Uhrzeit = jetzt
+            "date": now.date(),
+            "time": now.time(),
         }
         form = ShiftEntryForm(initial=initial)
 
@@ -304,6 +378,7 @@ def entry_detail(request, entry_id):
     Detailansicht eines Schichtbucheintrags:
     - zeigt Grunddaten, Bilder, Videos
     - zeigt Historie (ShiftEntryUpdate)
+    - zeigt zusätzliche Mitarbeiter (Teilnehmer), falls Model-Feld vorhanden
     - über can_view_spares wird gesteuert, wer Ersatzteile sieht:
       * Admin
       * Meister
@@ -340,6 +415,11 @@ def entry_detail(request, entry_id):
     # Historie (Ergänzungen)
     updates = entry.updates.select_related("user").all()
 
+    # Teilnehmer (weitere Mitarbeiter) – nur, wenn das Feld existiert
+    participants = []
+    if hasattr(entry, "participants"):
+        participants = list(entry.participants.all())
+
     context = {
         "entry": entry,
         "can_view_spares": can_view_spares,
@@ -347,6 +427,7 @@ def entry_detail(request, entry_id):
         "likes_count": likes_count,
         "user_liked": user_liked,
         "updates": updates,
+        "participants": participants,
     }
     return render(request, "buch/entry_detail.html", context)
 
@@ -361,14 +442,19 @@ def update_entry(request, entry_id):
     - Kommentar
     - Zeitpunkt der Maßnahme (Form prüft: nicht in der Zukunft)
     - optional neuer Status
-    - optionale Ersatzteil-Daten (alte Felder):
+    - optionale Ersatzteil-Daten (alte Felder am ShiftEntry):
       -> wenn gleiche SAP-Nummer wie im Haupteintrag:
          * entnommene Anzahl wird addiert
          * Bestand wird durch neuen Wert ersetzt
       -> wenn andere SAP-Nummer oder bisher keine:
          * Werte werden gesetzt / überschrieben
     - optionale zusätzliche Medien (Bild, Video)
+    - optional Anpassung der Teilnehmer (weitere Mitarbeiter), falls
+      das Form-Feld "participants" und das Model-Feld existieren.
+    - @-Mentions im Kommentar erzeugen ggf. Notifications.
     """
+    from .forms import ShiftEntryUpdateForm  # lokal importiert
+
     entry = get_object_or_404(ShiftEntry, id=entry_id)
 
     if request.method == "POST":
@@ -424,11 +510,20 @@ def update_entry(request, entry_id):
                     if qty_remaining is not None:
                         entry.spare_part_quantity_remaining = qty_remaining
 
-                # Achtung: sobald erneut Ersatzteile eingetragen werden,
-                # kann die SAP-Buchung nicht mehr "gültig" sein -> zurücksetzen
-                entry.spare_parts_processed = False
-                entry.spare_parts_processed_by = None
-                entry.spare_parts_processed_at = None
+                # Sobald erneut Ersatzteile eingetragen werden, ist die SAP-Buchung
+                # ggf. nicht mehr aktuell -> zurücksetzen
+                if hasattr(entry, "spare_parts_processed"):
+                    entry.spare_parts_processed = False
+                if hasattr(entry, "spare_parts_processed_by"):
+                    entry.spare_parts_processed_by = None
+                if hasattr(entry, "spare_parts_processed_at"):
+                    entry.spare_parts_processed_at = None
+
+            # Teilnehmer (weitere Mitarbeiter) aus dem Update-Form übernehmen,
+            # falls das Feld existiert.
+            participants = form.cleaned_data.get("participants", None)
+            if participants is not None and hasattr(entry, "participants"):
+                entry.participants.set(participants)
 
             # 3) Änderungen am Haupteintrag speichern
             entry.save()
@@ -436,7 +531,7 @@ def update_entry(request, entry_id):
             # -----------------------------
             # Historien-Eintrag anlegen
             # -----------------------------
-            ShiftEntryUpdate.objects.create(
+            update_obj = ShiftEntryUpdate.objects.create(
                 entry=entry,
                 user=request.user,
                 comment=comment,
@@ -456,14 +551,31 @@ def update_entry(request, entry_id):
             if video_file:
                 ShiftEntryVideo.objects.create(entry=entry, video=video_file)
 
+            # @-Mentions im Kommentar -> Notifications
+            mentioned_users = extract_mentioned_users(comment)
+            create_mention_notifications(
+                sender=request.user,
+                mentioned_users=mentioned_users,
+                entry=entry,
+                source="update",
+            )
+
             return redirect("entry_detail", entry_id=entry.id)
     else:
         # Default: jetzt, auf volle Minute gerundet, Status = aktueller Status
         now = timezone.localtime().replace(second=0, microsecond=0)
-        form = ShiftEntryUpdateForm(initial={
+        initial = {
             "action_time": now,
             "status": entry.status,
-        })
+        }
+
+        # Wenn Teilnehmer-Feld im Model vorhanden ist, könnte man hier
+        # initiale Teilnehmer vorbelegen. Das setzt allerdings voraus,
+        # dass ShiftEntryUpdateForm ein entsprechendes Feld hat.
+        if hasattr(entry, "participants"):
+            initial["participants"] = entry.participants.all()
+
+        form = ShiftEntryUpdateForm(initial=initial)
 
     return render(request, "buch/entry_update.html", {
         "entry": entry,
@@ -500,21 +612,28 @@ def toggle_spare_parts_processed(request, entry_id):
         return redirect("entry_detail", entry_id=entry.id)
 
     # Wenn keine Ersatzteile erfasst sind, macht der Haken keinen Sinn
-    if not entry.has_any_spare_parts:
+    if not getattr(entry, "has_any_spare_parts", False):
         return redirect("entry_detail", entry_id=entry.id)
 
     # Status umschalten
+    if not hasattr(entry, "spare_parts_processed"):
+        return redirect("entry_detail", entry_id=entry.id)
+
     new_state = not entry.spare_parts_processed
     entry.spare_parts_processed = new_state
 
     if new_state:
         # Jetzt als bearbeitet markiert -> User + Zeitstempel setzen
-        entry.spare_parts_processed_by = user
-        entry.spare_parts_processed_at = timezone.now()
+        if hasattr(entry, "spare_parts_processed_by"):
+            entry.spare_parts_processed_by = user
+        if hasattr(entry, "spare_parts_processed_at"):
+            entry.spare_parts_processed_at = timezone.now()
     else:
         # Zurückgesetzt -> Felder leeren
-        entry.spare_parts_processed_by = None
-        entry.spare_parts_processed_at = None
+        if hasattr(entry, "spare_parts_processed_by"):
+            entry.spare_parts_processed_by = None
+        if hasattr(entry, "spare_parts_processed_at"):
+            entry.spare_parts_processed_at = None
 
     entry.save()
 
@@ -529,7 +648,7 @@ def debug_media(request):
     """
     Diagnose-Seite:
     - zeigt MEDIA_ROOT
-    - listet alle ShiftEntryImage-Objekte
+    - listet alle ShiftEntryImage-Einträge
     - prüft, ob die Dateien wirklich auf der Platte existieren
     - zeigt, was im Verzeichnis shift_images liegt
     """

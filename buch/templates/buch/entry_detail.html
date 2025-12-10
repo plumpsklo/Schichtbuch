@@ -103,6 +103,26 @@
     <tr><th>Dauer (min)</th><td>{{ entry.duration_minutes }}</td></tr>
     <tr><th>Priorität</th><td>{{ entry.priority }}</td></tr>
     <tr><th>Mitarbeiter</th><td>{{ entry.user.username }}</td></tr>
+    <tr>
+        <th>Ersteller</th>
+        <td>{{ entry.user.username }}</td>
+    </tr>
+    <tr>
+        <th>Weitere Mitarbeiter</th>
+        <td>
+            {% if entry.additional_workers.all %}
+                {% for w in entry.additional_workers.all %}
+                    <span style="display:inline-block; padding:2px 6px; margin:2px; border-radius:999px; border:1px solid #ccc; font-size:12px;">
+                        {{ w.username }}
+                    </span>
+                {% empty %}
+                    <em>Keine weiteren Mitarbeiter</em>
+                {% endfor %}
+            {% else %}
+                <em>Keine weiteren Mitarbeiter</em>
+            {% endif %}
+        </td>
+    </tr>
 </table>
 
 <h3>Titel</h3>

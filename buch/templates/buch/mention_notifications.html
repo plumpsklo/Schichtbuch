@@ -1,0 +1,41 @@
+{% extends "buch/base.html" %}
+
+{% block title %}Erwähnungen{% endblock %}
+
+{% block content %}
+<h2>@-Erwähnungen</h2>
+
+{% if notifications %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+            <tr>
+                <th>Zeitpunkt</th>
+                <th>Eintrag</th>
+                <th>Von</th>
+                <th>Textauszug</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for n in notifications %}
+                <tr onclick="window.location='{% url 'entry_detail' n.entry.id %}'"
+                    style="cursor:pointer;">
+                    <td>{{ n.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ n.entry.title }}</td>
+                    <td>
+                        {% if n.created_by %}
+                            {{ n.created_by.username }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ n.text_snippet }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p><em>Keine Erwähnungen vorhanden.</em></p>
+{% endif %}
+{% endblock %}

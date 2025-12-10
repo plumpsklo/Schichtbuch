@@ -6,6 +6,8 @@
     <title>Schichtbuch – {% block title %}{% endblock %}</title>
     <!-- wichtig für iPhone & Co -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {# Optionaler Block für seiten-spezifische Styles/JS #}
+    {% block extra_head %}{% endblock %}
 
     <style>
         /* Farb-Variablen für Hell/Dunkel */
@@ -371,7 +373,29 @@
                 <a href="{% url 'home' %}" class="btn">Übersicht</a>
                 <a href="{% url 'new_entry' %}" class="btn btn-primary">Neuer Eintrag</a>
 
-                <span class="nav-user">Angemeldet als: {{ user.username }}</span>
+                {# Globale Benachrichtigungen (@-Mentions, etc.) #}
+                <a href="{% url 'notifications_inbox' %}"
+                    class="btn"
+                    style="position: relative;">
+                    Hinweise
+                    {% if header_unread_notifications_count %}
+                        <span style="
+                            display:inline-block;
+                            min-width:18px;
+                            padding:0 4px;
+                            margin-left:4px;
+                            border-radius:10px;
+                            background: var(--danger-color);
+                            color: var(--danger-text-on);
+                            font-size:11px;
+                            text-align:center;
+                        ">
+                            {{ header_unread_notifications_count }}
+                        </span>
+                    {% endif %}
+                </a>
+
+                <span>Angemeldet als: {{ user.username }}</span>
                 <a href="{% url 'password_change' %}" class="btn">Passwort ändern</a>
                 <a href="{% url 'logout' %}" class="btn btn-danger">Logout</a>
             {% else %}
