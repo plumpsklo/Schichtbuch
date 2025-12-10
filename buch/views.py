@@ -596,6 +596,34 @@ def mention_notifications_view(request):
     }
     return render(request, "buch/mention_notifications.html", context)
 
+@login_required
+def notifications_inbox(request):
+    """
+    Zeigt alle @-Mention-Benachrichtigungen für den aktuellen Benutzer.
+    - Ungelesene werden (optional) oben angezeigt
+    - Beim Öffnen können wir sie direkt als 'gelesen' markieren.
+    """
+    user = request.user
+
+    unread_qs = MentionNotification.objects.filter(
+        user=user,
+        is_read=False,
+    ).select_related("entry", "created_by")
+
+    read_qs = MentionNotification.objects.filter(
+        user=user,
+        is_read=True,
+    ).select_related("entry", "created_by")[:100]  # z.B. die letzten 100 gelesenen
+
+    # Optional: alle ungelesenen als gelesen markieren, sobald der Nutzer die Inbox aufruft
+    if unread_qs.exists():
+        unread_qs.update(is_read=True)
+
+    context = {
+        "unread_notifications": unread_qs,
+        "read_notifications": read_qs,
+    }
+    return render(request, "buch/mention_notifications.html", context)
 
 # -------------------------------------------------------------------
 # Diagnose-Seite Medien

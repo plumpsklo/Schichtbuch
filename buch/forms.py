@@ -2,6 +2,7 @@ import datetime
 
 from django import forms
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 from .models import ShiftEntry, ShiftEntryUpdate
 
@@ -14,7 +15,13 @@ class ShiftEntryForm(forms.ModelForm):
     - optionale Felder für Bild/Video
     - Validierung: Datum/Uhrzeit nicht in der Zukunft
     """
-
+    additional_workers = forms.ModelMultipleChoiceField(
+        queryset=User.objects.all().order_by("username"),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"size": 4}),
+        label="Weitere Mitarbeiter",
+        help_text="Kollegen auswählen, die an diesem Vorgang beteiligt waren.",
+    )
     # extra Feld nur im Formular (wird zu action_datetime kombiniert)
     time = forms.TimeField(
         required=True,

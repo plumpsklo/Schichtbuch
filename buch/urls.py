@@ -25,6 +25,9 @@ urlpatterns = [
         name='toggle_spare_parts_processed',
     ),
 
+    # Hinweise / Erwähnungen
+    path("notifications/", views.notifications_inbox, name="notifications_inbox"),
+    
     # Debug-Seite für Medien
     path('debug-media/', views.debug_media, name='debug_media'),
 
